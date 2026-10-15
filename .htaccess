@@ -51,3 +51,13 @@ ErrorDocument 404 /404.html
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
 </IfModule>
+
+# JS, CSS e dados mudam a cada deploy: cache curto no navegador.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|json|html)$">
+    Header set Cache-Control "public, max-age=300"
+  </FilesMatch>
+  <FilesMatch "\.(webp|png)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
