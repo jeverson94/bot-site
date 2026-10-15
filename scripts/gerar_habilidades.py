@@ -20,6 +20,9 @@ for k in cat:
         # A tradução do jogo às vezes inverte a ordem: "{0}raio de" vira "raio de {0}".
         d = re.sub(r'(\d+(?:\.\d+)?)m? ?raio de ?\[/other\]', r'raio de \1m[/other]', d)
         d = re.sub(r'(\d(?:\.\d+)?m)(?=[a-zà-ú])', r'\1 ', d)
+        # "0.19 da sua Energia Máxima" é fração: mostra como porcentagem.
+        d = re.sub(r'\[(\w+)\](0\.\d+)\[/\1\](\s+d[aoe]s?\s+(?:sua|seu|\[))',
+                   lambda m: '[%s]%s%%[/%s]%s' % (m.group(1), num(float(m.group(2)) * 100), m.group(1), m.group(3)), d)
         d = re.sub(r'[ \t]+\n', '\n', d).strip()
     out[k] = {'d': d or '', 's': st}
 json.dump(out, open('../assets/data/habilidades.json', 'w'), ensure_ascii=False, separators=(',', ':'))

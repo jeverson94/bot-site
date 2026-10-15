@@ -187,7 +187,7 @@ function render(b, DB){
 // Textos e números vêm de assets/data/habilidades.json, gerado a partir dos
 // arquivos do jogo (spells.xml + localização PT-BR).
 let HAB = null;
-const habReady = fetch("/assets/data/habilidades.json?v=20261015c").then(function(r){ return r.json(); }).then(function(d){ HAB = d; }).catch(function(){ HAB = {}; });
+const habReady = fetch("/assets/data/habilidades.json?v=20261015d").then(function(r){ return r.json(); }).then(function(d){ HAB = d; }).catch(function(){ HAB = {}; });
 const tip = document.createElement("div");
 tip.className = "sp-tip";
 document.body.appendChild(tip);

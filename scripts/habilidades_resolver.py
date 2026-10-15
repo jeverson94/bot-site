@@ -93,11 +93,19 @@ def num(x):
 
 def fmt(v, attr, el, after):
     if attr == 'literal': return str(v)
+    # Curvas de animação ("A 0:4;0.8:4;0.81:0"): usa o maior valor da curva.
+    if isinstance(v, str) and re.match(r'^\s*[A-Z]{1,2}\s*-?[\d.]+\s*:', v):
+        body = re.sub(r'^\s*[A-Z]{1,2}', '', v)
+        vals = [float(p.split(':')[1]) for p in body.split(';') if ':' in p and p.split(':')[1].strip()]
+        v = max(vals) if vals else 0
     try: f = float(v)
     except Exception: return str(v)
     pct_after = after.lstrip().startswith('%')
     if attr in TIME: return num(f) + 's'
     if attr in DIST: return num(f) + 'm'
+    # Frações entre 0 e 1 no arquivo do jogo são porcentagens (0.7 = 70%).
+    if 0 < abs(f) < 1 and attr not in ('change', 'totalchange'):
+        return num(abs(f) * 100) + ('' if pct_after else '%')
     if attr in ('change', 'totalchange', 'damageabsorbed', 'amount'): return num(abs(f))
     if attr == 'energyusage' and el is not None and el.get('energyusageisrelative') == 'true': return num(f * 100) + '%'
     if attr in ('value', 'factor', 'attributestealfactor', 'percentage', 'amountpercent') or attr.endswith('factor') or attr.endswith('damage') or attr.endswith('healing'):
