@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Build | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015b">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015b">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015c">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015c">
 <style>
   .crumb { color: var(--text-dim); font-size: 13px; margin: 8px 0 22px; }
   .crumb a { color: var(--text-dim); }
@@ -43,6 +43,26 @@
   .swaps { margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .swaps img { width:30px; height:30px; }
   @media (max-width: 860px) { .bd-layout { grid-template-columns: 1fr; } .doll { max-width:360px; } }
+  .abil-group img[data-sp] { cursor: help; transition: transform .1s; }
+  .abil-group img[data-sp]:hover { transform: scale(1.12); }
+  .sp-n { cursor: help; }
+  .sp-n:hover { color: var(--text); }
+  .sp-tip { position: fixed; z-index: 60; width: 420px; max-width: calc(100vw - 24px); background: #151a24; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.55); padding: 14px 16px; font-size: 13.5px; line-height: 1.55; color: var(--text-dim); display: none; pointer-events: none; }
+  .sp-tip.show { display: block; }
+  .sp-tip .hd { display: flex; align-items: center; gap: 12px; }
+  .sp-tip .hd img { width: 40px; height: 40px; border-radius: 8px; }
+  .sp-tip .hd b { display: block; color: var(--text); font-size: 15px; }
+  .sp-tip .hd small { color: var(--gold); font-weight: 700; font-size: 11.5px; letter-spacing: .5px; }
+  .sp-tip .st { display: flex; flex-wrap: wrap; gap: 4px 16px; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); margin: 12px 0 10px; padding: 8px 0; font-size: 12.5px; }
+  .sp-tip .st b { color: var(--text); margin-left: 4px; }
+  .sp-tip .ds { white-space: normal; }
+  .sp-tip .t-dmg { color: #f06a6a; font-weight: 600; }
+  .sp-tip .t-heal { color: #6fcf8e; font-weight: 600; }
+  .sp-tip .t-buff { color: #e6c35c; font-weight: 600; }
+  .sp-tip .t-debuff { color: #e6a35c; font-weight: 600; }
+  .sp-tip .t-cc { color: #7fb2ff; font-weight: 600; }
+  .sp-tip .t-mobility { color: #6fd6d6; font-weight: 600; }
+  .sp-tip .t-other { color: var(--text); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -51,10 +71,10 @@
   <div class="crumb"><a href="/builds/">Builds</a> / <span id="crumb-name">Build</span></div>
   <div id="bd-root"><p class="subtitle">Carregando build...</p></div>
 </main>
-<script src="/assets/js/config.js?v=20261015b"></script>
-<script src="/assets/js/auth.js?v=20261015b"></script>
-<script src="/assets/js/common.js?v=20261015b"></script>
-<script src="/assets/js/shell.js?v=20261015b"></script>
+<script src="/assets/js/config.js?v=20261015c"></script>
+<script src="/assets/js/auth.js?v=20261015c"></script>
+<script src="/assets/js/common.js?v=20261015c"></script>
+<script src="/assets/js/shell.js?v=20261015c"></script>
 <script>
 window.EmporioShell.renderTopbar("/builds/");
 const CFG = window.EMPORIO_CONFIG;
@@ -86,6 +106,7 @@ Promise.all([
 ]).then(function(res){
   const b = (res[0]||[]).find(function(x){ return x.public_id === publicId; });
   const DB = res[1];
+  window.__DB = DB;
   if (!b) { document.getElementById("bd-root").innerHTML = '<p class="subtitle">Essa build não está mais pública. <a href="/builds/">Voltar para a biblioteca</a></p>'; return; }
   render(b, DB);
 }).catch(function(){
@@ -105,8 +126,8 @@ function abilitiesHtml(DB,id){
     // catálogo), não o nome do sprite. Com o sprite, a maioria dava 404.
     const opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return {id:sid, n: s ? s.n : sid}; });
     return '<div class="abil-group"><span class="abil-key">'+esc(k)+'</span>' + opts.map(function(s){
-      return '<img src="'+spellIcon(s.id)+'" data-id="'+esc(s.id)+'" alt="'+esc(s.n)+'" title="'+esc(s.n)+'" loading="lazy" onerror="spellFallback(this)">';
-    }).join("") + '<span>' + esc(opts.map(function(s){return s.n;}).join(" / ")) + '</span></div>';
+      return '<img src="'+spellIcon(s.id)+'" data-id="'+esc(s.id)+'" data-sp="'+esc(s.id)+'" data-k="'+esc(k)+'" alt="'+esc(s.n)+'" loading="lazy" onerror="spellFallback(this)">';
+    }).join("") + '<span>' + opts.map(function(s){ return '<span class="sp-n" data-sp="'+esc(s.id)+'" data-k="'+esc(k)+'">'+esc(s.n)+'</span>'; }).join(" / ") + '</span></div>';
   }).join("") + '</div>';
 }
 
@@ -161,6 +182,47 @@ function render(b, DB){
     });
   });
 }
+
+// ---------- Tooltip das habilidades ----------
+// Textos e números vêm de assets/data/habilidades.json, gerado a partir dos
+// arquivos do jogo (spells.xml + localização PT-BR).
+let HAB = null;
+const habReady = fetch("/assets/data/habilidades.json?v=20261015c").then(function(r){ return r.json(); }).then(function(d){ HAB = d; }).catch(function(){ HAB = {}; });
+const tip = document.createElement("div");
+tip.className = "sp-tip";
+document.body.appendChild(tip);
+const KEY_TXT = {P1:"Passiva", P2:"Passiva", P3:"Passiva"};
+function markup(t){
+  return esc(t)
+    .replace(/\[#\]\s*/g, "• ")
+    .replace(/\[(dmg|heal|buff|debuff|cc|mobility|other)\]/g, '<span class="t-$1">')
+    .replace(/\[\/(dmg|heal|buff|debuff|cc|mobility|other)\]/g, "</span>")
+    .replace(/\[\/?[\w#]*\]/g, "")
+    .replace(/\n/g, "<br>");
+}
+let tipFor = null;
+function showTip(el){
+  const id = el.dataset.sp;
+  if (!HAB) { habReady.then(function(){ if (tipFor === el) showTip(el); }); }
+  tipFor = el;
+  const h = (HAB && HAB[id]) || { d: "", s: [] };
+  const sp = window.__DB && window.__DB.spells[id];
+  const k = el.dataset.k;
+  tip.innerHTML = '<div class="hd"><img src="'+spellIcon(id)+'" alt=""><div><b>'+esc(sp ? sp.n : id)+'</b><small>'+esc(KEY_TXT[k] || ("Tecla " + k))+'</small></div></div>' +
+    (h.s.length ? '<div class="st">' + h.s.map(function(x){ return '<span>'+esc(x[0])+'<b>'+esc(x[1])+'</b></span>'; }).join("") + '</div>' : '<div style="height:10px"></div>') +
+    '<div class="ds">' + (HAB ? (markup(h.d) || "Sem descrição.") : "Carregando...") + '</div>';
+  tip.classList.add("show");
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = r.left + r.width / 2 - tw / 2, y = r.bottom + 10;
+  x = Math.max(12, Math.min(x, window.innerWidth - tw - 12));
+  if (y + th > window.innerHeight - 12) y = Math.max(12, r.top - th - 10);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip(){ tip.classList.remove("show"); tipFor = null; }
+document.addEventListener("mouseover", function(e){ const el = e.target.closest("[data-sp]"); if (el) showTip(el); });
+document.addEventListener("mouseout", function(e){ const el = e.target.closest("[data-sp]"); if (el && !el.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener("click", function(e){ const el = e.target.closest("[data-sp]"); if (el) { if (tipFor === el) hideTip(); else showTip(el); } else hideTip(); });
+window.addEventListener("scroll", hideTip, { passive: true });
 </script>
 </body>
 </html>
