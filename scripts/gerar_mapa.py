@@ -6,6 +6,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', '
 import xml.etree.ElementTree as ET, re, json, collections, math
 t = ET.parse(SRC).getroot()
 cl = t.find('clusters')
+allc = {c.get('id'): c for c in cl.findall('cluster')}
 keep = re.compile(r'^(OPENPVP_|SAFEAREA$|STARTAREA|STARTINGCITY|PLAYERCITY_SAFEAREA_0|PLAYERCITY_BLACK_ROYAL$|PLAYERCITY_BLACK_PORTALCITY|PLAYERCITY_BLACK_REST|PLAYERCITY_BLACK$)')
 raw = {}
 for c in cl.findall('cluster'):
@@ -59,7 +60,15 @@ for cid in ids:
             elif tid.startswith('PSG-'): kind = 'p'
             elif tid.startswith('BLAC'): kind = 'r'
             else: kind = 'o'
-            exits.append([kind, r1(px), r1(py), idx.get(tid, -1)])
+            row = [kind, r1(px), r1(py), idx.get(tid, -1)]
+            if kind == 'd':
+                # Masmorra estática: nome, tier e facção vêm do cluster dela.
+                dc = allc.get(tid)
+                mm2 = re.search(r'_T(\d)_([A-Z]+)_', dc.get('file') or '') if dc is not None else None
+                if not mm2:
+                    continue  # entrada do banco das cidades, que já tem ícone próprio
+                row += [dc.get('displayname') or '', int(mm2.group(1)), mm2.group(2)]
+            exits.append(row)
     ters = []
     tr = c.find('territories')
     if tr is not None:

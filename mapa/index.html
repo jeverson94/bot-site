@@ -89,7 +89,7 @@
       <header><b>Controles</b><button data-close="p-ctrl" title="Recolher">›</button></header>
       <div class="body">
         <h4>Buscar local</h4>
-        <div class="sugg"><input class="input" id="find" placeholder="Zona, castelo ou território" style="width:100%" autocomplete="off"><div class="opts" id="o-find"></div></div>
+        <div class="sugg"><input class="input" id="find" placeholder="Zona, castelo, território ou masmorra" style="width:100%" autocomplete="off"><div class="opts" id="o-find"></div></div>
         <h4>Conexões</h4>
         <div class="checks">
           <label><input type="checkbox" data-l="links" checked> Mapas</label>
@@ -157,6 +157,8 @@ const MARK = {
   smuggler_marketplace: { n: "Mercado dos contrabandistas", g: "⚖", c: "#d1a35b", l: "smugglers" }, smuggler_trader: { n: "Contrabandista", g: "✦", c: "#d1a35b", l: "smugglers" },
   outlands_teleportation_portal: { n: "Portal das Outlands", g: "◎", c: "#b48ef0", l: "portalsMark" }, Icon_Gvg_Seasons: { n: "Território da temporada", g: "⚑", c: "#e2bc62", l: "territories" },
 };
+const FAC = { UND: "Mortos-vivos", MOR: "Morgana", KPR: "Guardiões", HER: "Hereges" };
+function dngText(e) { return "Masmorra T" + e[5] + ": " + e[4] + (FAC[e[6]] ? " (" + FAC[e[6]] + ")" : ""); }
 const EXIT = { z: { n: "Saída para outra zona", c: "#5b8def", l: "exits" }, d: { n: "Entrada de masmorra", c: "#e05b5b", l: "dungeonExits" }, p: { n: "Passagem", c: "#6fcf8e", l: "exits" }, r: { n: "Saída para as Outlands", c: "#b48ef0", l: "exits" }, o: { n: "Saída", c: "#9aa0ab", l: "exits" } };
 const TER = { CASTLE: "Castelo", WATCHTOWER: "Território" };
 
@@ -435,6 +437,19 @@ function draw() {
         const r = Math.min(8, Math.max(2.5, zp * .028));
         ctx.beginPath(); ctx.arc(sx(p[0]), sy(p[1]), r, 0, Math.PI * 2);
         ctx.fillStyle = st.c; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.stroke();
+        if (e[0] === "d" && e[5]) {
+          // Tier da masmorra ao lado da entrada.
+          if (zp > 150) {
+            const lab = "T" + e[5], fs = Math.min(12, Math.max(9.5, zp * .03));
+            ctx.font = "700 " + fs + "px Inter, system-ui, sans-serif";
+            const tw = ctx.measureText(lab).width, lx = sx(p[0]) + r + 4, ly = sy(p[1]);
+            ctx.fillStyle = "rgba(10,13,20,.88)"; roundRect(lx, ly - fs / 2 - 3, tw + 8, fs + 6, 4); ctx.fill();
+            ctx.strokeStyle = st.c; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = "#f3d7d7"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(lab, lx + 4, ly + .5);
+          }
+          markers.push({ x: sx(p[0]), y: sy(p[1]), r: r + 3, t: dngText(e), z: i });
+          return;
+        }
         markers.push({ x: sx(p[0]), y: sy(p[1]), r: r + 3, t: st.n + (e[3] >= 0 ? ": " + Z[e[3]].n : ""), z: i });
       });
       // Marcadores do minimapa.
@@ -444,7 +459,8 @@ function draw() {
         const p = toWorld(z, m[1], m[2]);
         drawMark(sx(p[0]), sy(p[1]), st, zp);
         const ter = z.tr.find(function (t) { return Math.abs(t[3] - m[1]) < 2 && Math.abs(t[4] - m[2]) < 2; });
-        markers.push({ x: sx(p[0]), y: sy(p[1]), r: Math.max(8, zp * .05), t: st.n + (ter ? ": " + ter[0] : ""), z: i });
+        const dt = st.l === "dungeons" && z.t ? " T" + z.t + " (mesmo tier da zona)" : "";
+        markers.push({ x: sx(p[0]), y: sy(p[1]), r: Math.max(8, zp * .05), t: st.n + dt + (ter ? ": " + ter[0] : ""), z: i });
       });
       if (L.territories) z.tr.forEach(function (t) {
         if (t[1] === "CASTLE") return;
@@ -591,13 +607,19 @@ function zoneTip(z) {
   const ters = z.tr.filter(function (t) { return t[1] !== "CASTLE"; });
   const cnt = {};
   z.m.forEach(function (m) { const st = MARK[m[0]]; if (st && st.l !== "castles" && st.l !== "outposts") cnt[st.n] = (cnt[st.n] || 0) + 1; });
-  const dng = z.e.filter(function (e) { return e[0] === "d"; }).length;
+  // Masmorras estáticas da zona, uma linha por masmorra (algumas têm mais de uma entrada).
+  const dmap = {};
+  z.e.forEach(function (e) { if (e[0] === "d" && e[5]) { const k = e[4]; dmap[k] = dmap[k] || { e: e, n: 0 }; dmap[k].n++; } });
+  const dl = Object.keys(dmap).map(function (k) { return dmap[k]; }).sort(function (a, b) { return b.e[5] - a.e[5]; });
   return "<b>" + Emp.esc(z.n) + '</b><div><span class="tg" style="background:' + k.c + "22;color:" + k.c + '">' + k.n + "</span>" +
     (z.t ? '<span class="tg" style="background:rgba(255,255,255,.07);color:#e6e9ef">T' + z.t + (z.q ? " Q" + z.q : "") + "</span>" : "") +
     (BIOME[z.b] && z.k !== "city" ? '<span class="tg" style="background:rgba(255,255,255,.05)">' + BIOME[z.b].n + "</span>" : "") + "</div>" +
     (castles.length ? "<ul>" + castles.map(function (t) { return "<li>" + (t[2] === "MEDIUMCASTLE" ? "Castelo" : "Posto avançado") + ": " + Emp.esc(t[0]) + "</li>"; }).join("") + "</ul>" : "") +
     (ters.length ? '<div style="margin-top:6px">' + ters.length + (ters.length === 1 ? " território" : " territórios") + " (" + ters.map(function (t) { return t[2] === "Farm" ? "fazenda" : "recursos"; }).join(", ") + ")</div>" : "") +
-    (dng ? "<div>" + dng + (dng === 1 ? " entrada de masmorra" : " entradas de masmorra") + "</div>" : "") +
+    (dl.length ? '<div style="margin-top:6px">Masmorras</div><ul>' + dl.map(function (d) {
+      return '<li><span class="tg" style="background:rgba(224,91,91,.16);color:#f3a3a3">T' + d.e[5] + "</span> " + Emp.esc(d.e[4]) +
+        (FAC[d.e[6]] ? ' <span style="opacity:.7">· ' + FAC[d.e[6]] + "</span>" : "") + (d.n > 1 ? ' <span style="opacity:.7">· ' + d.n + " entradas</span>" : "") + "</li>";
+    }).join("") + "</ul>" : "") +
     Object.keys(cnt).map(function (n) { return "<div>" + n + (cnt[n] > 1 ? " (" + cnt[n] + ")" : "") + "</div>"; }).join("") +
     '<div style="margin-top:6px;font-size:11.5px">' + (adj[Z.indexOf(z)] || []).length + " zonas vizinhas · clique para usar na rota</div>";
 }
@@ -676,6 +698,8 @@ function suggest(inputId, boxId, onPick) {
     Z.forEach(function (z, i) {
       if (z.n.toLowerCase().indexOf(q) >= 0) res.push({ i: i, n: z.n, s: KIND[z.k].n + (z.t ? " T" + z.t : "") });
       z.tr.forEach(function (t) { if (t[0].toLowerCase().indexOf(q) >= 0) res.push({ i: i, n: z.n, s: (t[1] === "CASTLE" ? (t[2] === "MEDIUMCASTLE" ? "Castelo " : "Posto ") : "Território ") + t[0] }); });
+      const seen = {};
+      z.e.forEach(function (e) { if (e[0] === "d" && e[5] && !seen[e[4]] && e[4].toLowerCase().indexOf(q) >= 0) { seen[e[4]] = 1; res.push({ i: i, n: z.n, s: "Masmorra T" + e[5] + " " + e[4] }); } });
     });
     box.innerHTML = res.slice(0, 12).map(function (r) { return '<div data-i="' + r.i + '"><b>' + Emp.esc(r.n) + '</b><span class="muted small">' + Emp.esc(r.s) + "</span></div>"; }).join("") || '<div class="muted">Nada encontrado</div>';
     box.classList.add("open");
@@ -722,7 +746,7 @@ document.getElementById("legend").innerHTML = Object.keys(KIND).map(function (k)
 // ---------- dados ----------
 resize();
 buildTextures();
-fetch("/assets/data/mapa.json?v=3").then(function (r) { return r.json(); }).then(function (d) {
+fetch("/assets/data/mapa.json?v=4").then(function (r) { return r.json(); }).then(function (d) {
   D = d; Z = d.z; S = d.scale;
   const a = d.rot * Math.PI / 180; COS = Math.cos(a); SIN = Math.sin(a);
   adj = Z.map(function () { return []; });
