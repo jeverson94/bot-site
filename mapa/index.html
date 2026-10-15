@@ -4,104 +4,501 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mapa | Empório dos Bots</title>
-<meta name="description" content="Mapa das zonas de Albion Online com o caminho mais curto entre duas zonas, com opção de evitar zonas vermelhas e pretas.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<meta name="description" content="Mapa de Albion Online com todas as zonas, tier e qualidade, castelos, postos avançados, masmorras e portais. Rota mais curta entre zonas.">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015g">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015g">
 <style>
-  .map-layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; align-items: start; }
-  .map-box { position: relative; background: #080b11; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; height: 72vh; min-height: 460px; touch-action: none; }
-  .map-box svg { width: 100%; height: 100%; cursor: grab; display: block; }
-  .map-box svg.drag { cursor: grabbing; }
-  .tip { position: absolute; pointer-events: none; background: rgba(18,21,31,.96); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; display: none; white-space: nowrap; z-index: 3; }
-  .zoom { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .zoom button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--card); color: var(--gold); font-size: 16px; cursor: pointer; }
-  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-dim); margin-top: 12px; }
-  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
-  .route { list-style: none; padding: 0; margin: 12px 0 0; max-height: 46vh; overflow-y: auto; }
-  .route li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13.5px; cursor: pointer; }
-  .route li span.n { color: var(--text-dim); width: 22px; text-align: right; font-size: 12px; }
-  @media (max-width: 900px) { .map-layout { grid-template-columns: 1fr; } .map-box { height: 60vh; } }
+  .map-page { padding: 18px 20px 24px; }
+  .map-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 4px 12px; }
+  .map-head h1 { font-size: 26px; margin: 0; }
+  .map-wrap { position: relative; height: calc(100vh - 150px); min-height: 520px; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; background: #070a10; }
+  .map-wrap:fullscreen { border-radius: 0; height: 100vh; }
+  #cv { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  #cv.drag { cursor: grabbing; }
+  .zoom { position: absolute; left: 14px; top: 14px; display: flex; gap: 8px; z-index: 4; }
+  .zoom .stack { display: flex; flex-direction: column; border-radius: 9px; overflow: hidden; border: 1px solid var(--card-border); }
+  .zoom button { width: 36px; height: 36px; border: none; background: var(--card); color: var(--gold); font-size: 18px; cursor: pointer; }
+  .zoom .stack button + button { border-top: 1px solid var(--card-border); }
+  .zoom .round { border-radius: 50%; border: 1px solid var(--card-border); }
+  .panel { position: absolute; top: 104px; z-index: 4; width: 310px; max-height: calc(100% - 80px); overflow-y: auto; background: rgba(18,21,31,.96); border: 1px solid var(--card-border); border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.45); }
+  .panel.left { left: 14px; max-height: calc(100% - 118px); }
+  .panel.right { right: 14px; top: 14px; max-height: calc(100% - 28px); }
+  .panel header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--card-border); position: sticky; top: 0; background: rgba(18,21,31,.98); z-index: 1; }
+  .panel header b { font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--text); }
+  .panel header button { background: none; border: none; color: var(--gold); font-size: 16px; cursor: pointer; }
+  .panel .body { padding: 12px 14px 14px; }
+  .panel.closed { width: auto; }
+  .panel.closed .body { display: none; }
+  .panel h4 { margin: 14px 0 8px; font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--gold); }
+  .panel h4:first-child { margin-top: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  .checks label { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-dim); cursor: pointer; }
+  .checks input { accent-color: var(--gold); }
+  .chipset { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chipset .chip { padding: 4px 9px; font-size: 11.5px; }
+  .tip { position: absolute; z-index: 6; pointer-events: none; background: rgba(14,17,26,.97); border: 1px solid rgba(226,188,98,.25); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--text-dim); max-width: 300px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .tip b { color: var(--text); font-size: 14px; }
+  .tip .tg { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; margin: 4px 4px 0 0; }
+  .tip ul { margin: 6px 0 0; padding-left: 16px; }
+  .route-list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 34vh; overflow-y: auto; }
+  .route-list li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; cursor: pointer; }
+  .route-list li span.n { width: 20px; text-align: right; color: var(--text-dim); font-size: 11.5px; }
+  .sugg { position: relative; }
+  .sugg .opts { position: absolute; left: 0; right: 0; top: 100%; background: var(--card); border: 1px solid var(--card-border); border-radius: 9px; margin-top: 3px; max-height: 220px; overflow-y: auto; display: none; z-index: 3; }
+  .sugg .opts.open { display: block; }
+  .sugg .opts div { padding: 7px 10px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+  .sugg .opts div:hover { background: var(--gold-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 11.5px; color: var(--text-dim); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  @media (max-width: 820px) {
+    .map-wrap { height: 78vh; }
+    .panel { width: calc(100% - 28px); }
+    .panel.left { top: 104px; }
+    .panel.right { top: auto; bottom: 14px; max-height: 45%; }
+    .panel.closed { width: auto; }
+  }
 </style>
 </head>
 <body>
 <div id="topbar-root"></div>
-<main class="page-wrap">
-  <section class="page-hero">
-    <div class="eyebrow">Ferramentas</div>
-    <h1>Mapa</h1>
-    <p class="subtitle">Escolha a origem e o destino para ver o caminho com menos trocas de zona. Também dá para clicar nas zonas do mapa. Portais das cidades reais para as Outlands contam como um salto. As Estradas de Avalon mudam todo dia e não entram no cálculo.</p>
-  </section>
+<main class="map-page">
+  <div class="map-head">
+    <div><h1>Mapa</h1><span class="muted small">Dados do mundo tirados dos arquivos do jogo. Dê zoom para ver nomes, tier e qualidade, castelos, postos avançados e saídas de cada zona.</span></div>
+  </div>
+  <div class="map-wrap" id="wrap">
+    <canvas id="cv"></canvas>
+    <div class="zoom">
+      <div class="stack"><button id="zin" title="Aproximar">+</button><button id="zout" title="Afastar">−</button></div>
+      <button class="round" id="zfit" title="Ver o mapa todo">⤢</button>
+      <button class="round" id="zfull" title="Tela cheia">⛶</button>
+    </div>
 
-  <div class="map-layout">
-    <div class="card">
-      <label class="field">Origem <input class="input" id="from" list="zones" placeholder="Ex.: Lymhurst"></label>
-      <label class="field" style="margin-top:10px">Destino <input class="input" id="to" list="zones" placeholder="Ex.: Caerleon"></label>
-      <datalist id="zones"></datalist>
-      <label class="row small muted" style="margin-top:12px"><input type="checkbox" id="safe"> Evitar zonas vermelhas e pretas</label>
-      <div class="row" style="margin-top:12px"><button class="btn" id="go">Traçar rota</button><button class="btn secondary" id="swap">Inverter</button></div>
-      <div id="out" style="margin-top:14px"></div>
-      <div class="legend">
-        <span><i style="background:#e2bc62"></i>Cidade</span><span><i style="background:#5b8def"></i>Azul</span><span><i style="background:#e8d36a"></i>Amarela</span><span><i style="background:#e05b5b"></i>Vermelha</span><span><i style="background:#6b7280"></i>Preta</span>
+    <section class="panel left" id="p-route">
+      <header><b>Rota</b><button data-close="p-route" title="Recolher">‹</button></header>
+      <div class="body">
+        <div class="sugg"><input class="input" id="from" placeholder="Origem" style="width:100%" autocomplete="off"><div class="opts" id="o-from"></div></div>
+        <div class="sugg" style="margin-top:8px"><input class="input" id="to" placeholder="Destino" style="width:100%" autocomplete="off"><div class="opts" id="o-to"></div></div>
+        <label class="row small muted" style="margin-top:10px"><input type="checkbox" id="safe"> Evitar zonas vermelhas e pretas</label>
+        <p class="muted small" style="margin:8px 0 0">Ou clique numa zona do mapa: o primeiro clique marca a origem, o segundo o destino.</p>
+        <div class="row" style="margin-top:10px"><button class="btn secondary" id="clear" style="flex:1">Limpar</button><button class="btn secondary" id="share" style="flex:1">Copiar link</button></div>
+        <div id="route-out" style="margin-top:10px"></div>
       </div>
-    </div>
-    <div class="map-box" id="box">
-      <svg id="svg"></svg>
-      <div class="tip" id="tip"></div>
-      <div class="zoom"><button id="zin" title="Aproximar">+</button><button id="zout" title="Afastar">−</button><button id="zfit" title="Ver tudo">⤢</button></div>
-    </div>
+    </section>
+
+    <section class="panel right" id="p-ctrl">
+      <header><b>Controles</b><button data-close="p-ctrl" title="Recolher">›</button></header>
+      <div class="body">
+        <h4>Buscar local</h4>
+        <div class="sugg"><input class="input" id="find" placeholder="Zona, castelo ou território" style="width:100%" autocomplete="off"><div class="opts" id="o-find"></div></div>
+        <h4>Conexões</h4>
+        <div class="checks">
+          <label><input type="checkbox" data-l="links" checked> Mapas</label>
+          <label><input type="checkbox" data-l="portals" checked> Portais</label>
+          <label><input type="checkbox" data-l="exits" checked> Saídas</label>
+          <label><input type="checkbox" data-l="dungeonExits" checked> Masmorras</label>
+        </div>
+        <h4>Locais</h4>
+        <div class="checks">
+          <label><input type="checkbox" data-l="castles" checked> Castelos</label>
+          <label><input type="checkbox" data-l="outposts" checked> Postos avançados</label>
+          <label><input type="checkbox" data-l="dungeons" checked> Masmorras</label>
+          <label><input type="checkbox" data-l="hell" checked> Hellgates</label>
+          <label><input type="checkbox" data-l="services" checked> Banco e mercado</label>
+          <label><input type="checkbox" data-l="smugglers" checked> Contrabandistas</label>
+          <label><input type="checkbox" data-l="territories"> Territórios</label>
+          <label><input type="checkbox" data-l="portalsMark" checked> Portais</label>
+        </div>
+        <h4>Rótulos</h4>
+        <div class="checks">
+          <label><input type="checkbox" data-l="names" checked> Nomes</label>
+          <label><input type="checkbox" data-l="tiers" checked> Tier e qualidade</label>
+        </div>
+        <h4>Tipo de zona</h4>
+        <div class="chipset" id="f-kind"></div>
+        <h4>Tier</h4>
+        <div class="chipset" id="f-tier"></div>
+        <h4>Qualidade</h4>
+        <div class="chipset" id="f-q"></div>
+        <h4>Bioma</h4>
+        <div class="chipset" id="f-bio"></div>
+        <h4>Legenda</h4>
+        <div class="legend" id="legend"></div>
+      </div>
+    </section>
+    <div class="tip" id="tip"></div>
   </div>
 </main>
-<script src="/assets/js/config.js?v=20261015f"></script>
-<script src="/assets/js/auth.js?v=20261015f"></script>
-<script src="/assets/js/common.js?v=20261015f"></script>
-<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/config.js?v=20261015g"></script>
+<script src="/assets/js/auth.js?v=20261015g"></script>
+<script src="/assets/js/common.js?v=20261015g"></script>
+<script src="/assets/js/shell.js?v=20261015g"></script>
 <script>
 EmporioShell.renderTopbar("/mapa/");
 
-const COLORS = { city: "#e2bc62", blue: "#5b8def", yellow: "#e8d36a", red: "#e05b5b", black: "#6b7280" };
-const KIND = { city: "Cidade", blue: "Zona azul", yellow: "Zona amarela", red: "Zona vermelha", black: "Zona preta" };
-const NS = "http://www.w3.org/2000/svg";
-const svg = document.getElementById("svg");
-let Z = [], E = [], adj = [], byName = {};
-let view = null, full = null;
-let pick = 0;
+// ---------- constantes de estilo (cores do tema) ----------
+const KIND = {
+  city: { n: "Cidade", c: "#e2bc62" }, blue: { n: "Zona azul", c: "#5b8def" }, yellow: { n: "Zona amarela", c: "#e8d36a" },
+  red: { n: "Zona vermelha", c: "#e05b5b" }, black: { n: "Zona preta", c: "#9aa0ab" },
+};
+const BIOME = {
+  FR: { n: "Floresta", c: "#2f4a35", d: "#26402c" }, SW: { n: "Pântano", c: "#2c4744", d: "#223b39" }, ST: { n: "Estepe", c: "#5a4f33", d: "#4b422a" },
+  HL: { n: "Planalto", c: "#4d3f30", d: "#403427" }, MN: { n: "Montanha", c: "#4a5059", d: "#3c4149" },
+};
+const MARK = {
+  Castle: { n: "Castelo", g: "♜", c: "#e2bc62", l: "castles" }, Castle_Outpost: { n: "Posto avançado de castelo", g: "♖", c: "#e2bc62", l: "outposts" },
+  dungeon_solo: { n: "Masmorra solo", g: "◆", c: "#e05b5b", l: "dungeons" }, dungeon_group: { n: "Masmorra em grupo", g: "◆", c: "#f08a5b", l: "dungeons" },
+  dungeon_elite: { n: "Masmorra de elite", g: "◆", c: "#b48ef0", l: "dungeons" }, hell_gate: { n: "Hellgate", g: "✹", c: "#ff6b4a", l: "hell" },
+  hell_corrupted_dungeon: { n: "Masmorra corrompida", g: "✹", c: "#c04ae0", l: "hell" }, hell_dungeon_entrance: { n: "The Depths", g: "✹", c: "#e04a8a", l: "hell" },
+  hell_hellden_portal: { n: "Covil infernal", g: "✹", c: "#ff6b4a", l: "hell" }, Bank: { n: "Banco", g: "$", c: "#6fcf8e", l: "services" },
+  Marketplace: { n: "Mercado", g: "⚖", c: "#6fcf8e", l: "services" }, Harbor: { n: "Porto", g: "⚓", c: "#7fb2ff", l: "services" },
+  Blackmarket: { n: "Mercado Negro", g: "⚖", c: "#9aa0ab", l: "services" }, Blackmarket_Bank: { n: "Banco", g: "$", c: "#6fcf8e", l: "services" },
+  Arena: { n: "Arena", g: "⚔", c: "#e8d36a", l: "services" }, Expedition: { n: "Expedição", g: "⚑", c: "#e8d36a", l: "services" },
+  IslandMerchant: { n: "Mercador das ilhas", g: "⚓", c: "#7fb2ff", l: "services" }, mist_trader: { n: "Mercador das Brumas", g: "✦", c: "#6fd6d6", l: "services" },
+  smuggler_marketplace: { n: "Mercado dos contrabandistas", g: "⚖", c: "#d1a35b", l: "smugglers" }, smuggler_trader: { n: "Contrabandista", g: "✦", c: "#d1a35b", l: "smugglers" },
+  outlands_teleportation_portal: { n: "Portal das Outlands", g: "◎", c: "#b48ef0", l: "portalsMark" }, Icon_Gvg_Seasons: { n: "Território da temporada", g: "⚑", c: "#e2bc62", l: "territories" },
+};
+const EXIT = { z: { n: "Saída para outra zona", c: "#5b8def", l: "exits" }, d: { n: "Entrada de masmorra", c: "#e05b5b", l: "dungeonExits" }, p: { n: "Passagem", c: "#6fcf8e", l: "exits" }, r: { n: "Saída para as Outlands", c: "#b48ef0", l: "exits" }, o: { n: "Saída", c: "#9aa0ab", l: "exits" } };
+const TER = { CASTLE: "Castelo", WATCHTOWER: "Território" };
 
-function el(tag, attrs) {
-  const e = document.createElementNS(NS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
-  return e;
+// Texturas de terreno geradas uma vez por bioma (manchas e pontos).
+const TEX = {};
+function makeTex(seed, spots, dots) {
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const g = c.getContext("2d");
+  let r = seed;
+  const rnd = function () { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * 128, y = rnd() * 128, rad = 6 + rnd() * 18;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    gr.addColorStop(0, spots[i % spots.length]); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  for (let i = 0; i < 160; i++) { g.fillStyle = dots[i % dots.length]; g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 1.5, 1 + rnd() * 1.5); }
+  return c;
 }
-function setView(v) { view = v; svg.setAttribute("viewBox", v.x + " " + v.y + " " + v.w + " " + v.h); }
-// Ajusta a caixa para a proporção do SVG, assim arrastar e dar zoom seguem o mouse.
-function fit(v) {
-  const ratio = svg.clientWidth / Math.max(1, svg.clientHeight);
-  if (v.w / v.h < ratio) { const nw = v.h * ratio; return { x: v.x - (nw - v.w) / 2, y: v.y, w: nw, h: v.h }; }
-  const nh = v.w / ratio; return { x: v.x, y: v.y - (nh - v.h) / 2, w: v.w, h: nh };
+function buildTextures() {
+  const spec = {
+    FR: [["rgba(70,110,60,.35)", "rgba(20,40,25,.35)"], ["rgba(120,160,90,.25)", "rgba(10,25,15,.3)"]],
+    SW: [["rgba(60,100,95,.35)", "rgba(20,45,45,.35)"], ["rgba(90,140,120,.25)", "rgba(10,30,30,.3)"]],
+    ST: [["rgba(150,130,80,.3)", "rgba(80,65,35,.35)"], ["rgba(190,170,110,.25)", "rgba(60,50,25,.3)"]],
+    HL: [["rgba(130,100,70,.3)", "rgba(60,45,30,.35)"], ["rgba(170,135,95,.22)", "rgba(40,30,20,.3)"]],
+    MN: [["rgba(150,158,170,.3)", "rgba(60,65,75,.35)"], ["rgba(220,225,232,.25)", "rgba(40,44,52,.3)"]],
+    city: [["rgba(200,170,100,.25)", "rgba(80,60,30,.3)"], ["rgba(240,210,140,.25)", "rgba(50,40,20,.3)"]],
+  };
+  let seed = 7;
+  Object.keys(spec).forEach(function (k) { TEX[k] = ctx.createPattern(makeTex(seed += 97, spec[k][0], spec[k][1]), "repeat"); });
 }
 
+// ---------- estado ----------
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const tip = document.getElementById("tip"), wrap = document.getElementById("wrap");
+let D = null, Z = [], adj = [], byName = {};
+let view = { x: 0, y: 0, k: 1 }, W = 0, H = 0, DPR = 1, dirty = true;
+let hover = null, hoverMark = null, route = null, pick = 0;
+const L = {};
+document.querySelectorAll("[data-l]").forEach(function (c) { L[c.dataset.l] = c.checked; });
+const F = { kind: new Set(), tier: new Set(), q: new Set(), bio: new Set() };
+
+// ---------- geometria ----------
+let COS = 0, SIN = 0, S = 0.0205;
+function toWorld(z, lx, ly) {
+  // Posição dentro da zona (metros) para o mapa-múndi (norte para cima).
+  const x = lx * COS - ly * SIN, y = lx * SIN + ly * COS;
+  return [z.x + S * x, -(z.y + S * y)];
+}
+function corners(z, pad) {
+  const h = z.s / 2 + (pad || 0);
+  return [[-h, -h], [h, -h], [h, h], [-h, h]].map(function (p) { return toWorld(z, p[0], p[1]); });
+}
+function sx(x) { return (x - view.x) * view.k + W / 2; }
+function sy(y) { return (y - view.y) * view.k + H / 2; }
+function wx(px) { return (px - W / 2) / view.k + view.x; }
+function wy(py) { return (py - H / 2) / view.k + view.y; }
+function inPoly(p, poly) {
+  let ins = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins;
+  }
+  return ins;
+}
+function passes(z) {
+  if (F.kind.size && !F.kind.has(z.k)) return false;
+  if (F.tier.size && !F.tier.has(z.t)) return false;
+  if (F.q.size && !F.q.has(z.q)) return false;
+  if (F.bio.size && !F.bio.has(z.b)) return false;
+  return true;
+}
+function zoneSize() { return 930 * S * view.k; } // tamanho aproximado de uma zona em pixels
+
+// ---------- desenho ----------
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  dirty = true;
+}
+function path(poly) {
+  ctx.beginPath();
+  poly.forEach(function (p, i) { if (i) ctx.lineTo(sx(p[0]), sy(p[1])); else ctx.moveTo(sx(p[0]), sy(p[1])); });
+  ctx.closePath();
+}
 function draw() {
-  const xs = Z.map(function (z) { return z.x; }), ys = Z.map(function (z) { return z.y; });
-  const minX = Math.min.apply(null, xs) - 15, maxX = Math.max.apply(null, xs) + 15;
-  const minY = Math.min.apply(null, ys) - 15, maxY = Math.max.apply(null, ys) + 15;
-  full = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-  setView(fit(full));
-  const ge = el("g", { id: "edges" }), gr = el("g", { id: "route" }), gz = el("g", { id: "nodes" }), gl = el("g", { id: "labels" });
-  E.forEach(function (e) {
-    const a = Z[e[0]], b = Z[e[1]];
-    ge.appendChild(el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: e[2] ? "#e2bc62" : "#2a3142", "stroke-width": e[2] ? 0.8 : 0.9, "stroke-dasharray": e[2] ? "3 3" : "", opacity: e[2] ? 0.5 : 1 }));
-  });
+  dirty = false;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * .8);
+  g.addColorStop(0, "#111827"); g.addColorStop(1, "#070a10");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (!D) return;
+  const zp = zoneSize();
+
+  // Litoral: zonas ampliadas e desfocadas formam as ilhas.
+  ctx.save();
+  ctx.filter = "blur(" + Math.max(4, Math.min(28, zp * .35)) + "px)";
+  ctx.fillStyle = "rgba(40,58,66,.85)";
+  Z.forEach(function (z) { path(z._c2); ctx.fill(); });
+  ctx.restore();
+
+  // Conexões entre zonas.
+  if (L.links || L.portals) {
+    ctx.lineWidth = Math.max(1, zp * .02);
+    D.g.forEach(function (e) {
+      const portal = e[2] === 1;
+      if ((portal && !L.portals) || (!portal && !L.links)) return;
+      const a = Z[e[0]], b = Z[e[1]];
+      ctx.strokeStyle = portal ? "rgba(180,142,240,.55)" : "rgba(226,188,98,.16)";
+      ctx.setLineDash(portal ? [6, 6] : []);
+      ctx.beginPath(); ctx.moveTo(sx(a._w[0]), sy(a._w[1])); ctx.lineTo(sx(b._w[0]), sy(b._w[1])); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // Zonas.
   Z.forEach(function (z, i) {
-    const c = el("circle", { cx: z.x, cy: z.y, r: z.k === "city" ? 4.2 : 2.8, fill: COLORS[z.k], stroke: "#080b11", "stroke-width": 0.8, "data-i": i, style: "cursor:pointer" });
-    gz.appendChild(c);
-    if (z.k === "city" && z.n.indexOf("Portal") < 0 && z.n.indexOf("Cross") < 0) {
-      const t = el("text", { x: z.x + 6, y: z.y + 3, fill: "#e2bc62", "font-size": 9, "font-weight": 700, "pointer-events": "none" });
-      t.textContent = z.n;
-      gl.appendChild(t);
+    const ok = passes(z);
+    path(z._c);
+    const bio = BIOME[z.b] || BIOME.MN;
+    const c0 = z._c[0], c2 = z._c[2];
+    const gr = ctx.createLinearGradient(sx(c0[0]), sy(c0[1]), sx(c2[0]), sy(c2[1]));
+    gr.addColorStop(0, z.k === "city" ? "#5a4a26" : bio.c);
+    gr.addColorStop(1, z.k === "city" ? "#3d3220" : bio.d);
+    ctx.globalAlpha = ok ? 1 : .22;
+    ctx.fillStyle = gr; ctx.fill();
+    // Textura do terreno por bioma, só quando a zona já está grande na tela.
+    if (zp > 24 && TEX[z.k === "city" ? "city" : z.b]) { ctx.fillStyle = TEX[z.k === "city" ? "city" : z.b]; ctx.fill(); }
+    ctx.lineWidth = Math.min(hover === i ? 4 : 2.5, Math.max(1, zp * (hover === i ? .045 : .018)));
+    ctx.strokeStyle = hover === i ? "#ffffff" : KIND[z.k].c;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Rota.
+  if (route) {
+    ctx.lineWidth = Math.max(3, zp * .08); ctx.strokeStyle = "#e2bc62"; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    route.forEach(function (i, n) { const p = Z[i]._w; if (n) ctx.lineTo(sx(p[0]), sy(p[1])); else ctx.moveTo(sx(p[0]), sy(p[1])); });
+    ctx.stroke();
+    route.forEach(function (i) { path(Z[i]._c); ctx.lineWidth = Math.max(2, zp * .05); ctx.strokeStyle = "rgba(226,188,98,.9)"; ctx.stroke(); });
+  }
+
+  // Detalhes conforme o zoom.
+  const showIn = zp > 70;
+  const markers = [];
+  if (showIn) {
+    Z.forEach(function (z, i) {
+      if (!passes(z)) return;
+      const cx = sx(z._w[0]), cy = sy(z._w[1]);
+      if (cx < -zp || cx > W + zp || cy < -zp || cy > H + zp) return;
+      // Saídas na borda da zona.
+      z.e.forEach(function (e) {
+        const st = EXIT[e[0]] || EXIT.o;
+        if (!L[st.l]) return;
+        const p = toWorld(z, e[1], e[2]);
+        const r = Math.min(8, Math.max(2.5, zp * .028));
+        ctx.beginPath(); ctx.arc(sx(p[0]), sy(p[1]), r, 0, Math.PI * 2);
+        ctx.fillStyle = st.c; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.stroke();
+        markers.push({ x: sx(p[0]), y: sy(p[1]), r: r + 3, t: st.n + (e[3] >= 0 ? ": " + Z[e[3]].n : ""), z: i });
+      });
+      // Marcadores do minimapa.
+      z.m.forEach(function (m) {
+        const st = MARK[m[0]] || (m[0].indexOf("Portal_") === 0 ? { n: "Portal", g: "◎", c: "#b48ef0", l: "portalsMark" } : null);
+        if (!st || !L[st.l]) return;
+        const p = toWorld(z, m[1], m[2]);
+        drawMark(sx(p[0]), sy(p[1]), st, zp);
+        const ter = z.tr.find(function (t) { return Math.abs(t[3] - m[1]) < 2 && Math.abs(t[4] - m[2]) < 2; });
+        markers.push({ x: sx(p[0]), y: sy(p[1]), r: Math.max(8, zp * .05), t: st.n + (ter ? ": " + ter[0] : ""), z: i });
+      });
+      if (L.territories) z.tr.forEach(function (t) {
+        if (t[1] === "CASTLE") return;
+        const p = toWorld(z, t[3], t[4]);
+        drawMark(sx(p[0]), sy(p[1]), { g: "⚑", c: t[2] === "Farm" ? "#6fcf8e" : "#7fb2ff" }, zp * .8);
+        markers.push({ x: sx(p[0]), y: sy(p[1]), r: Math.max(8, zp * .04), t: (t[2] === "Farm" ? "Território de fazenda" : "Território de recursos") + ": " + t[0], z: i });
+      });
+    });
+  }
+  window.__markers = markers;
+
+  // Rótulos.
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  Z.forEach(function (z) {
+    if (!passes(z)) return;
+    const cx = sx(z._w[0]), cy = sy(z._w[1]);
+    if (cx < -100 || cx > W + 100 || cy < -60 || cy > H + 60) return;
+    const big = zp > 45, mid = zp > 30;
+    if (L.names && (mid || (z.k === "city" && z.n.indexOf("Portal") < 0 && z.n.indexOf("Cross") < 0 && zp > 8))) {
+      const fs = big ? Math.min(15, Math.max(10, zp * .1)) : mid && z.k !== "city" ? 9 : 11;
+      ctx.font = "700 " + fs + "px Inter, system-ui, sans-serif";
+      const tw = ctx.measureText(z.n).width;
+      const ly = big ? cy - zp * .5 - 2 : mid && z.k !== "city" ? cy : cy - 12;
+      ctx.fillStyle = "rgba(10,13,20,.82)";
+      roundRect(cx - tw / 2 - 6, ly - fs / 2 - 4, tw + 12, fs + 8, 5); ctx.fill();
+      ctx.fillStyle = z.k === "city" ? "#e2bc62" : "#e6e9ef";
+      ctx.fillText(z.n, cx, ly);
+    }
+    if (L.tiers && big && z.t) {
+      const lab = "T" + z.t + (z.q ? " Q" + z.q : "");
+      ctx.font = "700 " + Math.min(13, Math.max(9.5, zp * .085)) + "px Inter, system-ui, sans-serif";
+      const tw = ctx.measureText(lab).width, ly = cy + zp * .5 + 2;
+      ctx.fillStyle = "rgba(10,13,20,.85)"; roundRect(cx - tw / 2 - 6, ly - 9, tw + 12, 18, 5); ctx.fill();
+      ctx.strokeStyle = KIND[z.k].c; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = "#e6e9ef"; ctx.fillText(lab, cx, ly);
     }
   });
-  svg.append(ge, gr, gz, gl);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function drawMark(x, y, st, zp) {
+  const r = Math.max(7, Math.min(15, zp * .055));
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(10,13,20,.88)"; ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = st.c; ctx.stroke();
+  ctx.fillStyle = st.c; ctx.font = "700 " + Math.round(r * 1.15) + "px system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(st.g, x, y + 1);
+}
+(function loop() { if (dirty) draw(); requestAnimationFrame(loop); })();
+
+// ---------- câmera ----------
+let anim = null;
+function animateTo(t) {
+  const from = Object.assign({}, view), t0 = performance.now();
+  cancelAnimationFrame(anim);
+  (function step(now) {
+    const p = Math.min(1, (now - t0) / 320), e = 1 - Math.pow(1 - p, 3);
+    view.x = from.x + (t.x - from.x) * e; view.y = from.y + (t.y - from.y) * e;
+    view.k = Math.exp(Math.log(from.k) + (Math.log(t.k) - Math.log(from.k)) * e);
+    dirty = true;
+    if (p < 1) anim = requestAnimationFrame(step);
+  })(t0);
+}
+function fitTo(ids, pad) {
+  const pts = [];
+  ids.forEach(function (i) { Z[i]._c.forEach(function (p) { pts.push(p); }); });
+  const xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+  const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  const k = Math.min(W / ((x1 - x0) + pad), H / ((y1 - y0) + pad));
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, k: Math.min(60, k) };
+}
+function zoomAt(f, px, py) {
+  const k = Math.max(.5, Math.min(80, view.k * f));
+  const mx = wx(px), my = wy(py);
+  view.k = k; view.x = mx - (px - W / 2) / k; view.y = my - (py - H / 2) / k;
+  dirty = true;
+}
+cv.addEventListener("wheel", function (e) {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * .0015), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+const ptrs = new Map();
+let drag = null, moved = false, pinch = null;
+cv.addEventListener("pointerdown", function (e) {
+  cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; moved = false; cv.classList.add("drag"); }
+  if (ptrs.size === 2) { const a = Array.from(ptrs.values()); pinch = { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), k: view.k }; }
+});
+cv.addEventListener("pointermove", function (e) {
+  const r = cv.getBoundingClientRect();
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && ptrs.size === 2) {
+    const a = Array.from(ptrs.values());
+    const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    zoomAt(pinch.k * d / pinch.d / view.k, (a[0].x + a[1].x) / 2 - r.left, (a[0].y + a[1].y) / 2 - r.top);
+    moved = true; return;
+  }
+  if (drag) {
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+    if (moved) { view.x = drag.vx - dx / view.k; view.y = drag.vy - dy / view.k; dirty = true; hideTip(); return; }
+  }
+  doHover(e.clientX - r.left, e.clientY - r.top);
+});
+function endPtr(e) {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (ptrs.size === 0) {
+    if (drag && !moved) {
+      const r = cv.getBoundingClientRect();
+      const i = zoneAt(e.clientX - r.left, e.clientY - r.top);
+      if (i != null) clickZone(i);
+    }
+    drag = null; cv.classList.remove("drag");
+  }
+}
+cv.addEventListener("pointerup", endPtr);
+cv.addEventListener("pointercancel", endPtr);
+cv.addEventListener("pointerleave", function () { if (!drag) hideTip(); });
+cv.addEventListener("dblclick", function (e) { const r = cv.getBoundingClientRect(); zoomAt(1.8, e.clientX - r.left, e.clientY - r.top); });
+document.getElementById("zin").onclick = function () { zoomAt(1.5, W / 2, H / 2); };
+document.getElementById("zout").onclick = function () { zoomAt(1 / 1.5, W / 2, H / 2); };
+document.getElementById("zfit").onclick = function () { animateTo(fitTo(Z.map(function (_, i) { return i; }), 30)); };
+document.getElementById("zfull").onclick = function () {
+  if (document.fullscreenElement) document.exitFullscreen(); else if (wrap.requestFullscreen) wrap.requestFullscreen();
+};
+document.addEventListener("fullscreenchange", function () { setTimeout(resize, 50); });
+window.addEventListener("resize", resize);
+
+// ---------- hover e tooltip ----------
+function zoneAt(px, py) {
+  const p = [wx(px), wy(py)];
+  for (let i = 0; i < Z.length; i++) if (inPoly(p, Z[i]._c)) return i;
+  return null;
+}
+function hideTip() { tip.style.display = "none"; if (hover != null) { hover = null; dirty = true; } }
+function zoneTip(z) {
+  const k = KIND[z.k];
+  const castles = z.tr.filter(function (t) { return t[1] === "CASTLE"; });
+  const ters = z.tr.filter(function (t) { return t[1] !== "CASTLE"; });
+  const cnt = {};
+  z.m.forEach(function (m) { const st = MARK[m[0]]; if (st && st.l !== "castles" && st.l !== "outposts") cnt[st.n] = (cnt[st.n] || 0) + 1; });
+  const dng = z.e.filter(function (e) { return e[0] === "d"; }).length;
+  return "<b>" + Emp.esc(z.n) + '</b><div><span class="tg" style="background:' + k.c + "22;color:" + k.c + '">' + k.n + "</span>" +
+    (z.t ? '<span class="tg" style="background:rgba(255,255,255,.07);color:#e6e9ef">T' + z.t + (z.q ? " Q" + z.q : "") + "</span>" : "") +
+    (BIOME[z.b] && z.k !== "city" ? '<span class="tg" style="background:rgba(255,255,255,.05)">' + BIOME[z.b].n + "</span>" : "") + "</div>" +
+    (castles.length ? "<ul>" + castles.map(function (t) { return "<li>" + (t[2] === "MEDIUMCASTLE" ? "Castelo" : "Posto avançado") + ": " + Emp.esc(t[0]) + "</li>"; }).join("") + "</ul>" : "") +
+    (ters.length ? '<div style="margin-top:6px">' + ters.length + (ters.length === 1 ? " território" : " territórios") + " (" + ters.map(function (t) { return t[2] === "Farm" ? "fazenda" : "recursos"; }).join(", ") + ")</div>" : "") +
+    (dng ? "<div>" + dng + (dng === 1 ? " entrada de masmorra" : " entradas de masmorra") + "</div>" : "") +
+    Object.keys(cnt).map(function (n) { return "<div>" + n + (cnt[n] > 1 ? " (" + cnt[n] + ")" : "") + "</div>"; }).join("") +
+    '<div style="margin-top:6px;font-size:11.5px">' + (adj[Z.indexOf(z)] || []).length + " zonas vizinhas · clique para usar na rota</div>";
+}
+function doHover(px, py) {
+  const ms = window.__markers || [];
+  const m = ms.find(function (x) { return Math.hypot(x.x - px, x.y - py) <= x.r; });
+  const i = zoneAt(px, py);
+  if (i !== hover) { hover = i; dirty = true; }
+  if (m) tip.innerHTML = "<b>" + Emp.esc(m.t) + '</b><div style="margin-top:4px">' + Emp.esc(Z[m.z].n) + "</div>";
+  else if (i != null) tip.innerHTML = zoneTip(Z[i]);
+  else { tip.style.display = "none"; return; }
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(px + 16, W - tw - 8) + "px";
+  tip.style.top = Math.min(py + 16, H - th - 8) + "px";
 }
 
+// ---------- rota ----------
 function bfs(from, to, safe) {
   const prev = new Array(Z.length).fill(-1), seen = new Array(Z.length).fill(false);
   const q = [from]; seen[from] = true;
@@ -109,130 +506,121 @@ function bfs(from, to, safe) {
     const u = q.shift();
     if (u === to) break;
     adj[u].forEach(function (v) {
-      if (seen[v]) return;
-      if (safe && v !== to && (Z[v].k === "red" || Z[v].k === "black")) return;
+      if (seen[v] || (safe && v !== to && (Z[v].k === "red" || Z[v].k === "black"))) return;
       seen[v] = true; prev[v] = u; q.push(v);
     });
   }
   if (!seen[to]) return null;
-  const path = [];
-  for (let v = to; v !== -1; v = prev[v]) path.unshift(v);
-  return path;
+  const p = [];
+  for (let v = to; v !== -1; v = prev[v]) p.unshift(v);
+  return p;
 }
-
-function showRoute(path) {
-  const gr = document.getElementById("route");
-  gr.innerHTML = "";
-  if (!path) return;
-  for (let i = 1; i < path.length; i++) {
-    const a = Z[path[i - 1]], b = Z[path[i]];
-    gr.appendChild(el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: "#e2bc62", "stroke-width": 2.4, "stroke-linecap": "round" }));
-  }
-  path.forEach(function (i) {
-    gr.appendChild(el("circle", { cx: Z[i].x, cy: Z[i].y, r: 5.5, fill: "none", stroke: "#e2bc62", "stroke-width": 1.4 }));
-  });
-  const xs = path.map(function (i) { return Z[i].x; }), ys = path.map(function (i) { return Z[i].y; });
-  const pad = 40;
-  const x = Math.min.apply(null, xs) - pad, y = Math.min.apply(null, ys) - pad;
-  const w = Math.max.apply(null, xs) - x + pad, h = Math.max.apply(null, ys) - y + pad;
-  setView(fit({ x: x, y: y, w: w, h: h }));
-}
-
-function route() {
-  const out = document.getElementById("out");
-  const a = byName[document.getElementById("from").value.trim().toLowerCase()];
-  const b = byName[document.getElementById("to").value.trim().toLowerCase()];
-  if (a == null || b == null) { out.innerHTML = '<p class="muted small">Escolha duas zonas da lista.</p>'; showRoute(null); return; }
+function idxOf(name) { const i = byName[(name || "").trim().toLowerCase()]; return i == null ? null : i; }
+function doRoute(fit) {
+  const a = idxOf(document.getElementById("from").value), b = idxOf(document.getElementById("to").value);
+  const out = document.getElementById("route-out");
+  if (a == null || b == null) { route = null; out.innerHTML = ""; dirty = true; return; }
   const safe = document.getElementById("safe").checked;
-  const path = bfs(a, b, safe);
-  if (!path) {
-    out.innerHTML = '<p class="muted small">' + (safe ? "Não existe caminho só por zonas seguras. Desmarque a opção para ver a rota completa." : "Não há caminho entre essas zonas.") + "</p>";
-    showRoute(null);
-    return;
-  }
-  const danger = path.filter(function (i) { return Z[i].k === "red" || Z[i].k === "black"; }).length;
-  out.innerHTML = "<b>" + (path.length - 1) + (path.length === 2 ? " salto" : " saltos") + '</b><span class="muted small"> · ' + danger + (danger === 1 ? " zona perigosa" : " zonas perigosas") + "</span>" +
-    '<ol class="route">' + path.map(function (i, n) {
+  route = bfs(a, b, safe);
+  if (!route) { out.innerHTML = '<p class="muted small">' + (safe ? "Não há caminho só por zonas seguras." : "Não há caminho entre essas zonas.") + "</p>"; dirty = true; return; }
+  const danger = route.filter(function (i) { return Z[i].k === "red" || Z[i].k === "black"; }).length;
+  out.innerHTML = "<b>" + (route.length - 1) + (route.length === 2 ? " salto" : " saltos") + '</b> <span class="muted small">· ' + danger + (danger === 1 ? " zona perigosa" : " zonas perigosas") + "</span>" +
+    '<ol class="route-list">' + route.map(function (i, n) {
       const z = Z[i];
-      return '<li data-i="' + i + '"><span class="n">' + n + '</span><i class="dot" style="background:' + COLORS[z.k] + '"></i><span>' + Emp.esc(z.n) + '</span><span class="muted small" style="margin-left:auto">' + KIND[z.k] + (z.t > 1 ? " T" + z.t : "") + "</span></li>";
+      return '<li data-i="' + i + '"><span class="n">' + n + '</span><i class="dot" style="background:' + KIND[z.k].c + '"></i><span>' + Emp.esc(z.n) + '</span><span class="muted small" style="margin-left:auto">' + (z.t ? "T" + z.t + (z.q ? " Q" + z.q : "") : "") + "</span></li>";
     }).join("") + "</ol>";
-  showRoute(path);
+  dirty = true;
+  if (fit) animateTo(fitTo(route, 60));
 }
-
-// ---------- interação com o mapa ----------
-const tip = document.getElementById("tip");
-svg.addEventListener("mousemove", function (e) {
-  const c = e.target.closest("circle[data-i]");
-  if (!c) { tip.style.display = "none"; return; }
-  const z = Z[parseInt(c.dataset.i, 10)];
-  const r = document.getElementById("box").getBoundingClientRect();
-  tip.innerHTML = "<b>" + Emp.esc(z.n) + '</b> <span class="muted">' + KIND[z.k] + (z.t > 1 ? " · T" + z.t : "") + "</span>";
-  tip.style.display = "block";
-  tip.style.left = (e.clientX - r.left + 12) + "px";
-  tip.style.top = (e.clientY - r.top + 12) + "px";
-});
-svg.addEventListener("mouseleave", function () { tip.style.display = "none"; });
-
-let drag = null, moved = false;
-svg.addEventListener("pointerdown", function (e) { drag = { x: e.clientX, y: e.clientY, v: Object.assign({}, view) }; moved = false; svg.classList.add("drag"); });
-window.addEventListener("pointermove", function (e) {
-  if (!drag) return;
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-  if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-  const k = view.w / svg.clientWidth;
-  setView({ x: drag.v.x - dx * k, y: drag.v.y - dy * k, w: view.w, h: view.h });
-});
-window.addEventListener("pointerup", function (e) {
-  if (drag && !moved) {
-    const c = e.target.closest && e.target.closest("circle[data-i]");
-    if (c) {
-      const z = Z[parseInt(c.dataset.i, 10)];
-      document.getElementById(pick === 0 ? "from" : "to").value = z.n;
-      pick = 1 - pick;
-      if (document.getElementById("from").value && document.getElementById("to").value) route();
-    }
-  }
-  drag = null; svg.classList.remove("drag");
-});
-function zoom(f, cx, cy) {
-  const nw = Math.max(40, Math.min(full.w * 1.5, view.w * f)), k = nw / view.w;
-  const px = cx == null ? view.x + view.w / 2 : cx, py = cy == null ? view.y + view.h / 2 : cy;
-  setView({ x: px - (px - view.x) * k, y: py - (py - view.y) * k, w: nw, h: view.h * k });
+function clickZone(i) {
+  const z = Z[i];
+  document.getElementById(pick === 0 ? "from" : "to").value = z.n;
+  pick = 1 - pick;
+  doRoute(false);
 }
-svg.addEventListener("wheel", function (e) {
-  e.preventDefault();
-  const r = svg.getBoundingClientRect();
-  const cx = view.x + (e.clientX - r.left) / r.width * view.w, cy = view.y + (e.clientY - r.top) / r.height * view.h;
-  zoom(e.deltaY > 0 ? 1.2 : 1 / 1.2, cx, cy);
-}, { passive: false });
-document.getElementById("zin").onclick = function () { zoom(1 / 1.4); };
-document.getElementById("zout").onclick = function () { zoom(1.4); };
-document.getElementById("zfit").onclick = function () { setView(fit(full)); };
-document.getElementById("go").onclick = route;
-document.getElementById("safe").onchange = route;
-document.getElementById("swap").onclick = function () {
-  const a = document.getElementById("from"), b = document.getElementById("to"), t = a.value;
-  a.value = b.value; b.value = t; route();
+document.getElementById("safe").onchange = function () { doRoute(true); };
+document.getElementById("clear").onclick = function () { document.getElementById("from").value = ""; document.getElementById("to").value = ""; pick = 0; route = null; document.getElementById("route-out").innerHTML = ""; dirty = true; history.replaceState(null, "", location.pathname); };
+document.getElementById("share").onclick = function () {
+  const u = location.origin + location.pathname + "#rota=" + encodeURIComponent(document.getElementById("from").value) + "|" + encodeURIComponent(document.getElementById("to").value) + (document.getElementById("safe").checked ? "|segura" : "");
+  navigator.clipboard.writeText(u).then(function () { document.getElementById("share").textContent = "Copiado"; setTimeout(function () { document.getElementById("share").textContent = "Copiar link"; }, 1500); }, function () { prompt("Copie o link:", u); });
 };
-document.getElementById("out").addEventListener("click", function (e) {
-  const li = e.target.closest("li[data-i]");
-  if (!li) return;
-  const z = Z[parseInt(li.dataset.i, 10)];
-  const h = 140 * svg.clientHeight / Math.max(1, svg.clientWidth);
-  setView({ x: z.x - 70, y: z.y - h / 2, w: 140, h: h });
+document.getElementById("route-out").addEventListener("click", function (e) {
+  const li = e.target.closest("[data-i]"); if (!li) return;
+  const zi = parseInt(li.dataset.i, 10); animateTo(fitTo([zi], Z[zi].s * S * 2.4));
 });
 
-fetch("/assets/data/mapa.json").then(function (r) { return r.json(); }).then(function (d) {
-  // No arquivo do jogo o norte é Y positivo; no SVG o Y cresce para baixo.
-  Z = d.z.map(function (z) { return { n: z[0], k: z[1], t: z[2], x: z[3], y: -z[4] }; });
-  E = d.e;
+// Campos com sugestões (rota e busca).
+function suggest(inputId, boxId, onPick) {
+  const inp = document.getElementById(inputId), box = document.getElementById(boxId);
+  inp.addEventListener("input", function () {
+    const q = inp.value.trim().toLowerCase();
+    if (q.length < 2) { box.classList.remove("open"); return; }
+    const res = [];
+    Z.forEach(function (z, i) {
+      if (z.n.toLowerCase().indexOf(q) >= 0) res.push({ i: i, n: z.n, s: KIND[z.k].n + (z.t ? " T" + z.t : "") });
+      z.tr.forEach(function (t) { if (t[0].toLowerCase().indexOf(q) >= 0) res.push({ i: i, n: z.n, s: (t[1] === "CASTLE" ? (t[2] === "MEDIUMCASTLE" ? "Castelo " : "Posto ") : "Território ") + t[0] }); });
+    });
+    box.innerHTML = res.slice(0, 12).map(function (r) { return '<div data-i="' + r.i + '"><b>' + Emp.esc(r.n) + '</b><span class="muted small">' + Emp.esc(r.s) + "</span></div>"; }).join("") || '<div class="muted">Nada encontrado</div>';
+    box.classList.add("open");
+  });
+  box.addEventListener("click", function (e) {
+    const o = e.target.closest("[data-i]"); if (!o) return;
+    box.classList.remove("open");
+    onPick(parseInt(o.dataset.i, 10));
+  });
+  document.addEventListener("click", function (e) { if (!box.contains(e.target) && e.target !== inp) box.classList.remove("open"); });
+}
+
+// ---------- controles ----------
+document.querySelectorAll("[data-l]").forEach(function (c) { c.addEventListener("change", function () { L[c.dataset.l] = c.checked; dirty = true; }); });
+document.querySelectorAll("[data-close]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    const p = document.getElementById(b.dataset.close);
+    p.classList.toggle("closed");
+    const left = p.classList.contains("left");
+    b.textContent = p.classList.contains("closed") ? (left ? "›" : "‹") : (left ? "‹" : "›");
+  });
+  // Em tela pequena os painéis começam recolhidos para não cobrir o mapa.
+  if (window.innerWidth <= 820) b.click();
+});
+function chips(id, set, items) {
+  const el = document.getElementById(id);
+  el.innerHTML = items.map(function (it) { return '<span class="chip" data-v="' + it[0] + '">' + it[1] + "</span>"; }).join("");
+  el.addEventListener("click", function (e) {
+    const c = e.target.closest("[data-v]"); if (!c) return;
+    const v = isNaN(+c.dataset.v) ? c.dataset.v : +c.dataset.v;
+    if (set.has(v)) set.delete(v); else set.add(v);
+    c.classList.toggle("on", set.has(v));
+    dirty = true;
+  });
+}
+chips("f-kind", F.kind, Object.keys(KIND).map(function (k) { return [k, KIND[k].n.replace("Zona ", "")]; }));
+chips("f-tier", F.tier, [2, 3, 4, 5, 6, 7, 8].map(function (t) { return [t, "T" + t]; }));
+chips("f-q", F.q, [1, 2, 3, 4, 5, 6].map(function (q) { return [q, "Q" + q]; }));
+chips("f-bio", F.bio, Object.keys(BIOME).map(function (b) { return [b, BIOME[b].n]; }));
+document.getElementById("legend").innerHTML = Object.keys(KIND).map(function (k) { return '<span><i style="background:' + KIND[k].c + '"></i>' + KIND[k].n.replace("Zona ", "") + "</span>"; }).join("") +
+  Object.keys(BIOME).map(function (b) { return '<span><i style="background:' + BIOME[b].c + '"></i>' + BIOME[b].n + "</span>"; }).join("") +
+  '<span><i style="background:#5b8def;border-radius:50%"></i>Saída</span><span><i style="background:#e05b5b;border-radius:50%"></i>Masmorra</span><span><i style="background:#6fcf8e;border-radius:50%"></i>Passagem</span>';
+
+// ---------- dados ----------
+resize();
+buildTextures();
+fetch("/assets/data/mapa.json?v=3").then(function (r) { return r.json(); }).then(function (d) {
+  D = d; Z = d.z; S = d.scale;
+  const a = d.rot * Math.PI / 180; COS = Math.cos(a); SIN = Math.sin(a);
   adj = Z.map(function () { return []; });
-  E.forEach(function (e) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); });
-  Z.forEach(function (z, i) { byName[z.n.toLowerCase()] = i; });
-  document.getElementById("zones").innerHTML = Z.map(function (z) { return z.n; }).sort().map(function (n) { return '<option value="' + Emp.esc(n) + '">'; }).join("");
-  draw();
+  d.g.forEach(function (e) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); });
+  Z.forEach(function (z, i) { z._w = [z.x, -z.y]; z._c = corners(z, 0); z._c2 = corners(z, z.s * .28); byName[z.n.toLowerCase()] = i; });
+  suggest("from", "o-from", function (i) { document.getElementById("from").value = Z[i].n; pick = 1; doRoute(true); });
+  suggest("to", "o-to", function (i) { document.getElementById("to").value = Z[i].n; pick = 0; doRoute(true); });
+  suggest("find", "o-find", function (i) { document.getElementById("find").value = Z[i].n; animateTo(fitTo([i], Z[i].s * S * 2.4)); });
+  const h = decodeURIComponent(location.hash || "");
+  const m = /#rota=([^|]*)\|([^|]*)(\|segura)?/.exec(h);
+  view = fitTo(Z.map(function (_, i) { return i; }), 30);
+  if (m) { document.getElementById("from").value = m[1]; document.getElementById("to").value = m[2]; document.getElementById("safe").checked = !!m[3]; doRoute(true); }
+  dirty = true;
 }).catch(function () {
-  document.getElementById("box").innerHTML = Emp.emptyState("Não foi possível carregar o mapa.");
+  wrap.insertAdjacentHTML("beforeend", '<div class="state" style="position:absolute;inset:0">Não foi possível carregar o mapa.</div>');
 });
 </script>
 </body>
