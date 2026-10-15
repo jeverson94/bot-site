@@ -4,6 +4,6 @@
 // site estático só chama ele via fetch - nenhuma lógica de conta/associação
 // fica duplicada aqui.
 window.EMPORIO_CONFIG = {
-  API_BASE: "https://147-15-80-15.sslip.io",
+  API_BASE: "https://146-235-57-112.sslip.io",
   RENDER_BASE: "https://render.albiononline.com/v1/item",
 };
