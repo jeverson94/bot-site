@@ -3,25 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Divisão de loot e regear — Empório dos Bots</title>
-<meta name="description" content="Divida o loot, desconte reparo e taxa e acompanhe o saldo de cada um.">
+<title>Recursos: Economia | Empório dos Bots</title>
+<meta name="description" content="Ferramentas para quem cuida do dinheiro da guilda: preços do mercado, pontos de temporada e a conta da divisão de loot.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>.tabs a.tab { text-decoration: none; }</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
+  <div class="tabs" style="margin-top:6px"><a class="tab" href="/recursos/eventos/">Eventos</a><a class="tab" href="/recursos/builds/">Builds</a><a class="tab" href="/recursos/inscricoes/">Inscrições</a><a class="tab on" href="/recursos/economia/">Economia</a><a class="tab" href="/recursos/discord/">Discord</a></div>
   <section class="page-hero">
     <div class="eyebrow">Recursos</div>
-    <h1>Divisão de loot e regear</h1>
-    <p class="subtitle">Divida o loot, desconte reparo e taxa e acompanhe o saldo de cada um.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <h1>Preços, temporada e divisão de loot</h1>
+    <p class="subtitle">Ferramentas para quem cuida do dinheiro da guilda: preços do mercado, pontos de temporada e a conta da divisão de loot.</p>
+    <div class="row wrap" style="margin-top:18px"><a class="btn" href="/mercado/">Abrir o mercado</a><a class="btn secondary" href="/pontos-temporada/">Pontos de temporada</a></div>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Divisão</h3><p>Automática entre quem participou.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Saldo</h3><p>Cada membro confere o seu com /saldo membro.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Gestor</h3><p>O gestor vê o total com /saldo todos.</p></div></section>
+  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Mercado</h3><p>Menor preço de venda em cada cidade e quanto o Mercado Negro está pagando, por tier, encanto e qualidade.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Pontos de temporada</h3><p>Calculadora de Might e SP para cada categoria da temporada de guildas, com a tabela nível a nível.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Divisão de loot</h3><p>A calculadora abaixo divide o valor do loot entre os participantes, descontando a taxa da guilda e os gastos da call.</p></div></section>
+
+  <div class="section">
+    <h2>Calculadora de divisão de loot</h2>
+    <div class="card">
+      <div class="grid3">
+        <label class="field">Valor total do loot (prata)<input class="input" id="total" type="number" min="0" value="10000000"></label>
+        <label class="field">Participantes<input class="input" id="people" type="number" min="1" value="10"></label>
+        <label class="field">Taxa da guilda (%)<input class="input" id="tax" type="number" min="0" max="100" value="10"></label>
+      </div>
+      <div class="grid3" style="margin-top:12px">
+        <label class="field">Gastos da call (reparo, regear)<input class="input" id="cost" type="number" min="0" value="0"></label>
+        <label class="field">Taxa de venda no mercado (%)<input class="input" id="sell" type="number" min="0" max="20" step="0.5" value="0"></label>
+        <label class="field">Partes extras para o caller<input class="input" id="caller" type="number" min="0" step="0.5" value="0"></label>
+      </div>
+      <div class="stats" style="margin-top:16px" id="out"></div>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/recursos/economia/");</script>
+<script>
+EmporioShell.renderTopbar("/recursos/eventos/");
+
+function loot() {
+  const v = function (id) { return Math.max(0, parseFloat(document.getElementById(id).value) || 0); };
+  const total = v("total"), people = Math.max(1, Math.round(v("people"))), tax = v("tax") / 100, cost = v("cost"), sell = v("sell") / 100, extra = v("caller");
+  const afterSell = total * (1 - sell);
+  const guild = afterSell * tax;
+  const net = Math.max(0, afterSell - guild - cost);
+  const shares = people + extra;
+  const each = net / shares;
+  document.getElementById("out").innerHTML =
+    '<div class="stat"><b>' + Emp.num(each) + '</b><span>para cada participante</span></div>' +
+    (extra ? '<div class="stat"><b>' + Emp.num(each * (1 + extra)) + '</b><span>para o caller</span></div>' : '') +
+    '<div class="stat"><b>' + Emp.num(guild) + '</b><span>para a guilda</span></div>' +
+    '<div class="stat"><b>' + Emp.num(net) + '</b><span>dividido entre todos</span></div>';
+}
+["total", "people", "tax", "cost", "sell", "caller"].forEach(function (id) { document.getElementById(id).addEventListener("input", loot); });
+loot();
+</script>
 </body>
 </html>

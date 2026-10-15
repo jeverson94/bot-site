@@ -3,25 +3,144 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Batalhas — Empório dos Bots</title>
-<meta name="description" content="Lutas recentes de Albion, com quem estava, quem matou e quanto de fama rolou.">
+<title>Batalhas | Empório dos Bots</title>
+<meta name="description" content="Batalhas recentes de Albion Online por servidor, com guildas, abates e fama.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .bt-guilds { font-weight: 600; color: var(--text); max-width: 560px; }
+  .bt-guilds small { display: block; font-weight: 400; color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
-    <h1>Batalhas</h1>
-    <p class="subtitle">Lutas recentes de Albion, com quem estava, quem matou e quanto de fama rolou.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <h1>Batalhas recentes</h1>
+    <p class="subtitle">Lutas registradas pela API oficial do Albion. Os dados chegam com alguns minutos de atraso.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Ao vivo</h3><p>As lutas mais recentes de EU, NA e Ásia.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Detalhe da luta</h3><p>Lado a lado das guildas, kills, mortes e itens usados.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Filtros</h3><p>Por servidor, tamanho da luta e guilda.</p></div></section>
+
+  <div class="toolbar">
+    <div id="region"></div>
+    <div class="row wrap" id="sizes"></div>
+    <input class="input grow" id="q" type="search" placeholder="Filtrar por guilda ou aliança" style="max-width:300px">
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Guildas</th><th>Quando</th><th class="num">Jogadores</th><th class="num">Abates</th><th class="num">Fama</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div id="state"></div>
+  <div class="pager"><button class="btn secondary" id="more" style="display:none">Carregar mais</button></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/batalhas/");</script>
+<script>
+EmporioShell.renderTopbar("/batalhas/");
+
+const SIZES = [0, 10, 20, 50, 100];
+let region = Emp.getRegion();
+let minPlayers = 0;
+let offset = 0;
+let all = [];
+let busy = false;
+
+function topSides(b) {
+  // Agrupa por aliança (ou guilda, quando não há aliança) e ordena por jogadores.
+  const sides = {};
+  Object.values(b.players || {}).forEach(function (p) {
+    const key = p.allianceName || p.guildName;
+    if (!key) return;
+    if (!sides[key]) sides[key] = { n: key, p: 0, guilds: {} };
+    sides[key].p++;
+    if (p.guildName) sides[key].guilds[p.guildName] = 1;
+  });
+  return Object.values(sides).sort(function (a, c) { return c.p - a.p; });
+}
+
+function matches(b) {
+  const n = Object.keys(b.players || {}).length;
+  if (n < minPlayers) return false;
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  if (!q) return true;
+  return Object.values(b.players || {}).some(function (p) {
+    return (p.guildName || "").toLowerCase().includes(q) || (p.allianceName || "").toLowerCase().includes(q);
+  });
+}
+
+function render() {
+  const list = all.filter(matches);
+  document.getElementById("rows").innerHTML = list.map(function (b) {
+    const sides = topSides(b);
+    const names = sides.slice(0, 4).map(function (s) { return Emp.esc(s.n) + " (" + s.p + ")"; }).join(", ");
+    const extra = sides.length > 4 ? " e mais " + (sides.length - 4) : "";
+    return '<tr class="link" data-id="' + b.id + '"><td class="bt-guilds">' + (names || "Jogadores sem guilda") + extra +
+      "<small>" + sides.length + (sides.length === 1 ? " lado" : " lados") + "</small></td>" +
+      '<td class="muted small">' + Emp.ago(b.startTime) + "<br>" + Emp.dateTime(b.startTime) + "</td>" +
+      '<td class="num">' + Object.keys(b.players || {}).length + '</td><td class="num">' + Emp.int(b.totalKills) +
+      '</td><td class="num">' + Emp.num(b.totalFame) + "</td></tr>";
+  }).join("");
+  const st = document.getElementById("state");
+  if (!list.length && !busy) st.innerHTML = Emp.emptyState("Nenhuma batalha com esses filtros nas páginas carregadas. Tente carregar mais.");
+  else if (!busy) st.innerHTML = "";
+}
+
+async function loadPage(auto) {
+  if (busy) return;
+  busy = true;
+  document.getElementById("state").innerHTML = Emp.loading("Buscando batalhas...");
+  document.getElementById("more").style.display = "none";
+  try {
+    // Com filtro de tamanho, busca algumas páginas seguidas até ter resultado suficiente.
+    let tries = 0;
+    do {
+      const page = await Emp.albion("battles", { s: region, offset: offset, limit: 50, sort: "recent" });
+      offset += 50;
+      page.forEach(function (b) { if (!all.some(function (x) { return x.id === b.id; })) all.push(b); });
+      tries++;
+    } while (auto && all.filter(matches).length < 20 && tries < 6 && offset < 2000);
+    busy = false;
+    render();
+    document.getElementById("more").style.display = "";
+  } catch (e) {
+    busy = false;
+    document.getElementById("state").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
+    document.getElementById("more").style.display = "";
+  }
+}
+
+function reset() {
+  offset = 0; all = [];
+  document.getElementById("rows").innerHTML = "";
+  loadPage(true);
+}
+
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; reset(); });
+
+document.getElementById("sizes").innerHTML = SIZES.map(function (n) {
+  return '<span class="chip' + (n === 0 ? " on" : "") + '" data-n="' + n + '">' + (n ? n + "+ jogadores" : "Todas") + "</span>";
+}).join("");
+document.getElementById("sizes").addEventListener("click", function (e) {
+  const c = e.target.closest("[data-n]");
+  if (!c) return;
+  minPlayers = parseInt(c.dataset.n, 10);
+  document.querySelectorAll("#sizes .chip").forEach(function (x) { x.classList.toggle("on", x === c); });
+  render();
+  if (all.filter(matches).length < 20) loadPage(true);
+});
+document.getElementById("q").addEventListener("input", render);
+document.getElementById("more").addEventListener("click", function () { loadPage(true); });
+document.getElementById("rows").addEventListener("click", function (e) {
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) location.href = "/batalhas/" + tr.dataset.id + "?s=" + region;
+});
+
+reset();
+</script>
 </body>
 </html>

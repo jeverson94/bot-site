@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ranking de guildas — Empório dos Bots</title>
-<meta name="description" content="As guildas que mais estão lutando e vencendo, por servidor.">
+<title>Ranking de guildas | Empório dos Bots</title>
+<meta name="description" content="Ranking das guildas e alianças que mais lutaram nas batalhas recentes de Albion Online.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
@@ -14,14 +14,121 @@
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
     <h1>Ranking de guildas</h1>
-    <p class="subtitle">As guildas que mais estão lutando e vencendo, por servidor.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Montado a partir das últimas mil batalhas do servidor escolhido. Lutas com menos de 5 jogadores ficam de fora.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Ranking</h3><p>Fama, kills e lutas vencidas na semana.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Perfil da guilda</h3><p>Membros, alianças e histórico de lutas.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Comparar</h3><p>Coloque duas guildas lado a lado.</p></div></section>
+
+  <div class="toolbar">
+    <div id="region"></div>
+    <div class="tabs" id="mode"><button class="tab on" data-m="g">Guildas</button><button class="tab" data-m="a">Alianças</button></div>
+    <select class="select" id="scale">
+      <option value="5-9999">Qualquer tamanho</option>
+      <option value="5-14">Roaming (5 a 14)</option>
+      <option value="15-29">Pequena escala (15 a 29)</option>
+      <option value="30-69">Média escala (30 a 69)</option>
+      <option value="70-9999">Grande escala (70+)</option>
+    </select>
+    <select class="select" id="sort">
+      <option value="b">Mais batalhas</option>
+      <option value="f">Mais fama</option>
+      <option value="kd">Melhor K/D</option>
+      <option value="m">Maior média de jogadores</option>
+    </select>
+    <input class="input grow" id="q" type="search" placeholder="Buscar nome" style="max-width:240px">
+  </div>
+  <p class="muted small" id="period"></p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>#</th><th>Nome</th><th class="num">Batalhas</th><th class="num">Média</th><th class="num">Pico</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">K/D</th><th class="num">Fama</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div id="state"></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/guildas/");</script>
+<script>
+EmporioShell.renderTopbar("/guildas/");
+
+let region = Emp.getRegion();
+let mode = "g";
+let data = [];
+
+function aggregate() {
+  const sc = document.getElementById("scale").value.split("-").map(Number);
+  const out = {};
+  data.forEach(function (b) {
+    if (b.p < sc[0] || b.p > sc[1]) return;
+    const local = {};
+    b.g.forEach(function (g) {
+      const key = mode === "g" ? g.id : (g.ai || "g:" + g.id);
+      const name = mode === "g" ? g.n : (g.a || g.n);
+      if (!local[key]) local[key] = { id: key, n: name, sub: mode === "g" ? g.a : "", p: 0, k: 0, d: 0, f: 0 };
+      local[key].p += g.p; local[key].k += g.k; local[key].d += g.d; local[key].f += g.f;
+    });
+    Object.values(local).forEach(function (l) {
+      if (!out[l.id]) out[l.id] = { n: l.n, sub: l.sub, b: 0, p: 0, peak: 0, k: 0, d: 0, f: 0 };
+      const o = out[l.id];
+      o.b++; o.p += l.p; o.peak = Math.max(o.peak, l.p); o.k += l.k; o.d += l.d; o.f += l.f;
+    });
+  });
+  return Object.values(out);
+}
+
+function render() {
+  if (!data.length) return;
+  const sort = document.getElementById("sort").value;
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  let list = aggregate().filter(function (o) { return o.b >= 2 || sort === "b"; });
+  list.forEach(function (o) { o.kd = o.k / Math.max(1, o.d); o.m = o.p / o.b; });
+  list.sort(function (a, b) {
+    if (sort === "f") return b.f - a.f;
+    if (sort === "kd") return b.kd - a.kd;
+    if (sort === "m") return b.m - a.m;
+    return b.b - a.b || b.f - a.f;
+  });
+  const ranked = list.map(function (o, i) { o.rank = i + 1; return o; });
+  const shown = ranked.filter(function (o) { return !q || o.n.toLowerCase().includes(q) || (o.sub || "").toLowerCase().includes(q); }).slice(0, 100);
+  document.getElementById("rows").innerHTML = shown.map(function (o) {
+    return '<tr><td class="muted">' + o.rank + "</td><td><b>" + Emp.esc(o.n) + "</b>" + (o.sub ? ' <span class="badge">' + Emp.esc(o.sub) + "</span>" : "") + "</td>" +
+      '<td class="num">' + o.b + '</td><td class="num">' + o.m.toFixed(1).replace(".", ",") + '</td><td class="num">' + o.peak +
+      '</td><td class="num">' + Emp.int(o.k) + '</td><td class="num">' + Emp.int(o.d) + '</td><td class="num ' + (o.kd >= 1 ? "good" : "bad") + '">' +
+      o.kd.toFixed(2).replace(".", ",") + '</td><td class="num">' + Emp.num(o.f) + "</td></tr>";
+  }).join("");
+  document.getElementById("state").innerHTML = shown.length ? "" : Emp.emptyState("Nenhum resultado com esses filtros.");
+}
+
+async function load() {
+  data = [];
+  document.getElementById("rows").innerHTML = "";
+  document.getElementById("period").textContent = "";
+  document.getElementById("state").innerHTML = Emp.loading("Somando as batalhas recentes...");
+  try {
+    data = await Emp.albion("recent", { s: region });
+    data = data.filter(function (b) { return b.p >= 5; });
+    if (data.length) {
+      const oldest = data[data.length - 1].t;
+      const hours = Math.round((Date.now() - Date.parse(oldest)) / 3600000);
+      document.getElementById("period").textContent = data.length + " batalhas com 5 ou mais jogadores nas últimas " + hours + " horas.";
+    }
+    render();
+  } catch (e) {
+    document.getElementById("state").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
+  }
+}
+
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; load(); });
+document.getElementById("mode").addEventListener("click", function (e) {
+  const b = e.target.closest("[data-m]");
+  if (!b) return;
+  mode = b.dataset.m;
+  document.querySelectorAll("#mode .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+  render();
+});
+["scale", "sort"].forEach(function (id) { document.getElementById(id).addEventListener("change", render); });
+document.getElementById("q").addEventListener("input", render);
+load();
+</script>
 </body>
 </html>

@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tierlist de itens — Empório dos Bots</title>
-<meta name="description" content="O que está sendo mais usado e o que mais ganha nas lutas grandes.">
+<title>Tierlist de itens | Empório dos Bots</title>
+<meta name="description" content="Os itens mais usados nas maiores batalhas recentes de Albion Online, por slot.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .slot-top { display: flex; flex-direction: column; gap: 8px; }
+  .slot-top .it { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .slot-top .it b { color: var(--text); font-weight: 600; display: block; }
+  .slot-top .it span { color: var(--text-dim); font-size: 12px; }
+  .bar { height: 5px; border-radius: 4px; background: var(--gold); opacity: .75; margin-top: 4px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +21,117 @@
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
     <h1>Tierlist de itens</h1>
-    <p class="subtitle">O que está sendo mais usado e o que mais ganha nas lutas grandes.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">O que os jogadores estão usando nas dez batalhas com mais abates entre as recentes do servidor. Conta cada jogador uma vez por batalha.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Mais usados</h3><p>Armas e armaduras por frequência nas ZvZs.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Taxa de vitória</h3><p>Quem está no lado vencedor com mais frequência.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Por função</h3><p>Tank, healer, suporte e DPS separados.</p></div></section>
+
+  <div class="toolbar">
+    <div id="region"></div>
+    <select class="select" id="min">
+      <option value="10">Batalhas com 10+ jogadores</option>
+      <option value="20" selected>Batalhas com 20+ jogadores</option>
+      <option value="40">Batalhas com 40+ jogadores</option>
+      <option value="80">Batalhas com 80+ jogadores</option>
+    </select>
+  </div>
+  <p class="muted small" id="info"></p>
+  <div id="top"></div>
+
+  <div class="section">
+    <h2>Lista completa</h2>
+    <div class="toolbar">
+      <div class="tabs" id="slots"></div>
+      <input class="input grow" id="q" type="search" placeholder="Buscar item" style="max-width:240px">
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>#</th><th>Item</th><th class="num">Uso no slot</th><th class="num">Jogadores</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Abates por morte</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/batalhas/meta/");</script>
+<script>
+EmporioShell.renderTopbar("/batalhas/meta/");
+
+const SLOTS = [
+  { k: "MainHand", n: "Arma" }, { k: "OffHand", n: "Secundária" }, { k: "Head", n: "Elmo" },
+  { k: "Armor", n: "Armadura" }, { k: "Shoes", n: "Botas" }, { k: "Cape", n: "Capa" }, { k: "Mount", n: "Montaria" },
+];
+let region = Emp.getRegion();
+let slot = "MainHand";
+let items = [];
+let DB = null;
+
+function withShare(list) {
+  const tot = {};
+  list.forEach(function (i) { tot[i.slot] = (tot[i.slot] || 0) + i.u; });
+  list.forEach(function (i) { i.share = i.u / Math.max(1, tot[i.slot]); i.kd = i.k / Math.max(1, i.d); i.name = Emp.itemBaseName(DB, i.id); });
+  return list;
+}
+
+function renderTop() {
+  document.getElementById("top").innerHTML = '<div class="grid3" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">' + SLOTS.map(function (s) {
+    const top = items.filter(function (i) { return i.slot === s.k; }).sort(function (a, b) { return b.u - a.u; }).slice(0, 4);
+    if (!top.length) return "";
+    const max = top[0].share;
+    return '<div class="card"><h3>' + s.n + '</h3><div class="slot-top">' + top.map(function (i) {
+      return '<div class="it"><img class="ico" src="' + Emp.icon(i.id) + '" alt="" loading="lazy"><div style="flex:1;min-width:0"><b>' + Emp.esc(i.name) +
+        "</b><span>" + Math.round(i.share * 100) + "% · " + i.u + ' jogadores</span><div class="bar" style="width:' + Math.round(100 * i.share / max) + '%"></div></div></div>';
+    }).join("") + "</div></div>";
+  }).join("") + "</div>";
+}
+
+function renderTable() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const list = items.filter(function (i) { return i.slot === slot && (!q || i.name.toLowerCase().includes(q)); })
+    .sort(function (a, b) { return b.u - a.u; });
+  document.getElementById("rows").innerHTML = list.map(function (i, n) {
+    return '<tr><td class="muted">' + (n + 1) + '</td><td><div class="row"><img class="ico sm" src="' + Emp.icon(i.id) + '" alt="" loading="lazy"><b>' + Emp.esc(i.name) + "</b></div></td>" +
+      '<td class="num">' + (i.share * 100).toFixed(1).replace(".", ",") + '%</td><td class="num">' + i.u + '</td><td class="num">' + i.k + '</td><td class="num">' + i.d +
+      '</td><td class="num ' + (i.kd >= 1 ? "good" : "bad") + '">' + i.kd.toFixed(2).replace(".", ",") + "</td></tr>";
+  }).join("") || '<tr><td colspan="7" class="muted">Nada nesse slot.</td></tr>';
+}
+
+async function load() {
+  items = [];
+  document.getElementById("top").innerHTML = Emp.loading("Lendo as mortes das maiores batalhas. Na primeira vez da hora isso leva até 30 segundos.");
+  document.getElementById("rows").innerHTML = "";
+  document.getElementById("info").textContent = "";
+  try {
+    const res = await Promise.all([Emp.albion("meta", { s: region, min: document.getElementById("min").value }), Emp.items()]);
+    DB = res[1];
+    const m = res[0];
+    if (!m.battles) {
+      document.getElementById("top").innerHTML = Emp.emptyState("Não houve batalhas desse tamanho nas últimas horas. Tente um tamanho menor.");
+      return;
+    }
+    items = withShare(m.items);
+    document.getElementById("info").textContent = m.battles + " batalhas e " + m.players + " jogadores analisados, desde " + Emp.dateTime(m.from) + ". Atualizado " + Emp.ago(m.generated) + ".";
+    renderTop();
+    renderTable();
+  } catch (e) {
+    document.getElementById("top").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
+  }
+}
+
+document.getElementById("slots").innerHTML = SLOTS.map(function (s) {
+  return '<button class="tab' + (s.k === slot ? " on" : "") + '" data-k="' + s.k + '">' + s.n + "</button>";
+}).join("");
+document.getElementById("slots").addEventListener("click", function (e) {
+  const b = e.target.closest("[data-k]");
+  if (!b) return;
+  slot = b.dataset.k;
+  document.querySelectorAll("#slots .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+  renderTable();
+});
+document.getElementById("q").addEventListener("input", renderTable);
+document.getElementById("min").addEventListener("change", load);
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; load(); });
+load();
+</script>
 </body>
 </html>

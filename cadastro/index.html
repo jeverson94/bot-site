@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Criar conta — Empório dos Bots</title>
+<title>Criar conta | Empório dos Bots</title>
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
@@ -11,15 +11,16 @@
 <div id="topbar-root"></div>
 <main class="page-wrap" style="max-width:640px; text-align:center;">
   <section class="page-hero" style="margin:0 auto;">
-    <div class="eyebrow">Sem assinatura</div>
+    <div class="eyebrow">Criar conta</div>
     <h1>Sua conta é o seu Discord.</h1>
-    <p class="subtitle">Não precisa criar usuário nem senha: entre com o Discord e pronto. Se você administra uma guilda com o bot instalado, ela já aparece no seu painel.</p>
+    <p class="subtitle" style="margin-bottom:24px">Não tem cadastro separado. Entre com o Discord e a conta é criada no primeiro acesso.</p>
     <a class="btn" id="go" href="#" style="padding:13px 26px; font-size:14.5px;">Entrar com Discord</a>
   </section>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/cadastro/"); document.getElementById("go").href = window.EmporioAuth.loginUrl();</script>
+<script>EmporioShell.renderTopbar("/cadastro/"); document.getElementById("go").href = window.EmporioAuth.loginUrl();</script>
 </body>
 </html>

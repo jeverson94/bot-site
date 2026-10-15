@@ -3,10 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Documentação — Empório dos Bots</title>
-<meta name="description" content="Tudo sobre o Empório: o bot, o painel, as composições e os comandos.">
+<title>Documentação | Empório dos Bots</title>
+<meta name="description" content="Como usar cada página do Empório dos Bots: builds, composições, eventos, batalhas, mercado, mapa e as outras ferramentas.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .doc-layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+  .toc { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 2px; }
+  .toc a { color: var(--text-dim); font-size: 13.5px; padding: 6px 10px; border-radius: 8px; }
+  .toc a:hover { background: var(--gold-soft); color: var(--gold); text-decoration: none; }
+  .legal-text h2 { scroll-margin-top: 90px; padding-top: 8px; }
+  .legal-text ol, .legal-text ul { padding-left: 20px; }
+  .legal-text li { margin: 4px 0; }
+  @media (max-width: 860px) { .doc-layout { grid-template-columns: 1fr; } .toc { position: static; flex-direction: row; flex-wrap: wrap; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +24,89 @@
   <section class="page-hero">
     <div class="eyebrow">Informação</div>
     <h1>Documentação</h1>
-    <p class="subtitle">Tudo sobre o Empório: o bot, o painel, as composições e os comandos.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Um guia curto de cada página. Se faltar alguma coisa, mande pela página de <a href="/contato/">contato</a>.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Começando</h3><p>Instalar o bot e configurar a guilda.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Comandos</h3><p>Lista completa dos comandos do Discord.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Painel</h3><p>Como montar comps, builds e eventos.</p></div></section>
+  <div class="doc-layout">
+    <nav class="toc">
+      <a href="#conta">Conta e login</a><a href="#builds">Builds</a><a href="#comps">Composições</a><a href="#eventos">Eventos</a>
+      <a href="#batalhas">Batalhas</a><a href="#ranking">Ranking e guerras</a><a href="#meta">Tierlist</a><a href="#mercado">Mercado</a>
+      <a href="#mapa">Mapa</a><a href="#temporada">Pontos de temporada</a><a href="#disarray">Disarray</a><a href="#vod">VOD review</a>
+      <a href="#status">Status e manutenção</a><a href="#dados">Onde ficam seus dados</a>
+    </nav>
+    <div class="legal-text">
+      <h2 id="conta">Conta e login</h2>
+      <p>O Empório não tem cadastro próprio. Clique em <b>Entrar</b>, aprove o acesso na tela do Discord e você volta logado. O login só é necessário para avaliar builds e ver a página Minhas guildas. Todo o resto funciona sem conta.</p>
+      <p>Para sair, use o botão <b>Sair</b> no canto do topo.</p>
+
+      <h2 id="builds">Builds</h2>
+      <ol>
+        <li>Abra <a href="/builds/">Builds</a>. Use a busca ou os filtros de função e conteúdo.</li>
+        <li>Clique numa build para abrir a página dela. À esquerda fica o equipamento; clique num slot para pular até o item na lista.</li>
+        <li>Cada item mostra as habilidades que o slot pode usar, separadas pela tecla (Q, W, E, passivas). O texto lista os nomes de todas as opções.</li>
+        <li>Logado, clique nas estrelas para dar sua nota.</li>
+      </ol>
+
+      <h2 id="comps">Composições</h2>
+      <ol>
+        <li>Em <a href="/composicoes/">Composições</a>, clique em <b>Nova composição</b>.</li>
+        <li>Dê um nome e o tipo de conteúdo. Use <b>+ Vaga</b> e <b>Adicionar party</b> para montar o tamanho da comp.</li>
+        <li>Em cada vaga escolha a função, digite a arma (a lista sugere os nomes) e, se quiser, ligue uma build da biblioteca.</li>
+        <li><b>Copiar link</b> gera um endereço com a comp inteira. Quem abrir vê a comp e pode clicar em <b>Editar uma cópia</b>.</li>
+        <li><b>Copiar para o Discord</b> gera a lista numerada das vagas por party.</li>
+      </ol>
+      <p>As comps ficam salvas no navegador. Se você limpar os dados do navegador, guarde antes os links.</p>
+
+      <h2 id="eventos">Eventos</h2>
+      <ol>
+        <li>Em <a href="/criar-evento/">Criar evento</a>, preencha título, data e hora no seu horário. O resto é opcional.</li>
+        <li>A prévia mostra como o anúncio vai aparecer no Discord.</li>
+        <li><b>Copiar anúncio</b> copia o texto com o horário em formato do Discord, que cada pessoa vê no próprio fuso.</li>
+        <li>O link do evento abre uma página com contagem regressiva e botões para a agenda.</li>
+      </ol>
+
+      <h2 id="batalhas">Batalhas</h2>
+      <p>A página <a href="/batalhas/">Batalhas</a> lista as lutas registradas pela API oficial do Albion. Escolha o servidor nas abas, filtre pelo tamanho ou pelo nome de uma guilda e clique numa linha para ver o detalhe: lados, guildas, destaques e cada morte com a arma de quem matou e de quem morreu.</p>
+      <p>A API oficial publica as batalhas com alguns minutos de atraso. Batalhas muito recentes podem aparecer sem as mortes.</p>
+
+      <h2 id="ranking">Ranking e guerras</h2>
+      <p>O <a href="/guildas/">Ranking de guildas</a> soma as últimas mil batalhas do servidor (normalmente as últimas horas). Troque entre guildas e alianças, filtre pela escala da luta e ordene por batalhas, fama, K/D ou média de jogadores.</p>
+      <p>Em <a href="/batalhas/guerras/">Guerras</a> aparecem as rivalidades que mais se repetiram. Para comparar duas guildas, digite o nome de cada uma e escolha na lista. A conta usa as últimas 200 batalhas da primeira guilda.</p>
+
+      <h2 id="meta">Tierlist de itens</h2>
+      <p>A <a href="/batalhas/meta/">Tierlist</a> lê as mortes das dez batalhas com mais abates entre as recentes e conta o equipamento de cada jogador uma vez por batalha. O uso no slot é a porcentagem dos jogadores daquele slot que usavam o item. A conta é refeita a cada hora; a primeira consulta da hora pode levar até 30 segundos.</p>
+
+      <h2 id="mercado">Mercado</h2>
+      <p>O <a href="/mercado/">Mercado</a> mostra o menor preço de venda em cada cidade e o maior valor que o Mercado Negro está pagando. Escolha categoria, tier, encanto e qualidade. Em verde fica a cidade mais barata. Os preços vêm do Albion Data Project, que depende de jogadores enviando dados; o tempo embaixo de cada preço mostra quando ele foi visto.</p>
+
+      <h2 id="mapa">Mapa</h2>
+      <p>No <a href="/mapa/">Mapa</a>, escolha origem e destino ou clique em duas zonas. A rota com menos trocas de zona aparece destacada e listada ao lado. Marque <b>Evitar zonas vermelhas e pretas</b> para andar só por zonas seguras quando houver caminho. Use a roda do mouse para dar zoom e arraste para mover.</p>
+
+      <h2 id="temporada">Pontos de temporada</h2>
+      <p>Escolha a categoria e os níveis atual e desejado. A calculadora mostra quanto SP a guilda ganha e quanto Might precisa. A lista de categorias é ordenada pelo Might por SP, do mais barato para o mais caro.</p>
+
+      <h2 id="disarray">Disarray</h2>
+      <p>Digite quantos jogadores da mesma aliança estão no cluster para ver o nível de Disarray. Some as montarias de batalha nos botões; o que passar de 15 pontos vira Disarray extra.</p>
+
+      <h2 id="vod">VOD review</h2>
+      <ol>
+        <li>Cole um link do YouTube ou escolha um vídeo do computador.</li>
+        <li>Clique em <b>Desenhar</b>. O vídeo pausa e você desenha livre, setas, caixas ou círculos por cima.</li>
+        <li>Escreva comentários no campo ao lado. Cada um guarda o segundo do vídeo; clique no tempo para voltar.</li>
+        <li>Para vídeos do YouTube, <b>Copiar link</b> gera um endereço com tudo. Para arquivos do computador, use <b>Exportar</b> e mande o arquivo junto com o vídeo.</li>
+      </ol>
+
+      <h2 id="status">Status e manutenção</h2>
+      <p><a href="/status/">Status</a> consulta o serverstatus oficial das três regiões e o backend do Empório. <a href="/manutencao-albion/">Manutenção</a> mostra quanto falta para a próxima queda diária no seu horário e as quedas já registradas.</p>
+
+      <h2 id="dados">Onde ficam seus dados</h2>
+      <p>Composições, eventos, reviews de vídeo e placares dos jogos ficam no seu navegador. O servidor do Empório guarda só o que vem do login com Discord e as notas das builds. Detalhes na <a href="/privacidade/">política de privacidade</a>.</p>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/docs/");</script>
+<script>EmporioShell.renderTopbar("/docs/");</script>
 </body>
 </html>

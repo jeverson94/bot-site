@@ -3,25 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clipes — Empório dos Bots</title>
-<meta name="description" content="As melhores jogadas da comunidade, num feed só.">
+<title>Clipes | Empório dos Bots</title>
+<meta name="description" content="Jogadas das guildas do Empório em Albion Online.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+  .clip { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; overflow: hidden; cursor: pointer; transition: transform .15s; }
+  .clip:hover { transform: translateY(-3px); border-color: rgba(226,188,98,.3); }
+  .clip .th { aspect-ratio: 16 / 9; background: #000 center / cover no-repeat; position: relative; }
+  .clip .th::after { content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 34px; color: rgba(255,255,255,.85); text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+  .clip .body { padding: 12px 14px; }
+  .clip .body b { display: block; color: var(--text); }
+  .player { aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid var(--card-border); }
+  .player iframe { width: 100%; height: 100%; border: 0; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
-<main class="page-wrap">
-  <section class="page-hero">
-    <div class="eyebrow">Diversão</div>
-    <h1>Clipes</h1>
-    <p class="subtitle">As melhores jogadas da comunidade, num feed só.</p>
-    <span class="soon">Em construção · chega em breve</span>
-  </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Feed</h3><p>Os clipes mais votados da semana.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Envie o seu</h3><p>Compartilhe a jogada da sua guilda.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Votação</h3><p>A comunidade escolhe os melhores.</p></div></section>
-</main>
+<main class="page-wrap" id="root"></main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/clipes/");</script>
+<script>
+EmporioShell.renderTopbar("/clipes/");
+const root = document.getElementById("root");
+
+// Aceita links do YouTube e de clipes da Twitch.
+function embedOf(url) {
+  const yt = /(?:youtu\.be\/|v=|\/embed\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/.exec(url || "");
+  if (yt) return { src: "https://www.youtube.com/embed/" + yt[1], thumb: "https://img.youtube.com/vi/" + yt[1] + "/hqdefault.jpg" };
+  const tw = /clips\.twitch\.tv\/([A-Za-z0-9_-]+)|twitch\.tv\/\w+\/clip\/([A-Za-z0-9_-]+)/.exec(url || "");
+  if (tw) return { src: "https://clips.twitch.tv/embed?clip=" + (tw[1] || tw[2]) + "&parent=" + location.hostname, thumb: "" };
+  return null;
+}
+
+function playerHtml(url) {
+  const e = embedOf(url);
+  if (!e) return '<div class="card"><p class="muted">Esse link não pode ser exibido aqui. <a href="' + Emp.esc(url) + '" target="_blank" rel="noopener">Abrir no site original</a>.</p></div>';
+  return '<div class="player"><iframe src="' + Emp.esc(e.src) + '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+}
+
+const slug = decodeURIComponent((location.pathname.match(/^\/clipes\/([^/]+)/) || [])[1] || "");
+
+fetch("/assets/data/clipes.json").then(function (r) { return r.json(); }).catch(function () { return []; }).then(function (clips) {
+  if (slug) {
+    const c = clips.find(function (x) { return x.id === slug; });
+    if (!c) { root.innerHTML = Emp.emptyState('Clipe não encontrado. <a href="/clipes/">Ver todos os clipes</a>'); return; }
+    document.title = c.titulo + " | Empório dos Bots";
+    root.innerHTML = '<div class="crumb"><a href="/clipes/">Clipes</a> / ' + Emp.esc(c.titulo) + "</div>" + playerHtml(c.url) +
+      '<h1 style="margin:18px 0 6px">' + Emp.esc(c.titulo) + '</h1><p class="muted">' + Emp.esc([c.autor, c.guilda, c.data].filter(Boolean).join(" · ")) + "</p>" +
+      (c.descricao ? '<p class="legal-text">' + Emp.esc(c.descricao) + "</p>" : "");
+    return;
+  }
+  root.innerHTML =
+    '<section class="page-hero"><div class="eyebrow">Diversão</div><h1>Clipes</h1><p class="subtitle">Jogadas das guildas do Empório. Para ver um clipe que ainda não está na lista, cole o link abaixo.</p></section>' +
+    '<div class="card" style="max-width:720px"><div class="row"><input class="input" id="url" placeholder="Link do YouTube ou de um clipe da Twitch" style="flex:1"><button class="btn" id="watch">Assistir</button></div><div id="watch-out" style="margin-top:14px"></div></div>' +
+    '<div class="section"><h2>Publicados</h2>' + (clips.length ? '<div class="clips">' + clips.map(function (c) {
+      const e = embedOf(c.url) || {};
+      return '<div class="clip" data-id="' + Emp.esc(c.id) + '"><div class="th" style="background-image:url(\'' + Emp.esc(e.thumb || "") + '\')"></div><div class="body"><b>' + Emp.esc(c.titulo) +
+        '</b><span class="muted small">' + Emp.esc([c.autor, c.guilda].filter(Boolean).join(" · ")) + "</span></div></div>";
+    }).join("") + "</div>" : '<p class="muted">Nenhum clipe publicado ainda. Quer ver sua jogada aqui? Mande o link pela página de <a href="/contato/">contato</a>.</p>') + "</div>";
+  root.addEventListener("click", function (e) {
+    const c = e.target.closest(".clip[data-id]");
+    if (c) location.href = "/clipes/" + encodeURIComponent(c.dataset.id);
+  });
+  document.getElementById("watch").onclick = function () {
+    const u = document.getElementById("url").value.trim();
+    document.getElementById("watch-out").innerHTML = u ? playerHtml(u) : "";
+  };
+});
+</script>
 </body>
 </html>

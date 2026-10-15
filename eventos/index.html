@@ -3,25 +3,111 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Eventos — Empório dos Bots</title>
-<meta name="description" content="Os próximos eventos das suas guildas, com vagas e quem já confirmou.">
+<title>Eventos | Empório dos Bots</title>
+<meta name="description" content="Eventos e calls de Albion Online com horário no seu fuso e contagem regressiva.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .count { display: flex; gap: 12px; margin: 18px 0; flex-wrap: wrap; }
+  .count div { background: var(--bg-soft); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 12px 16px; text-align: center; min-width: 78px; }
+  .count b { display: block; font-size: 30px; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .count span { font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; }
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 10px 16px; font-size: 14px; }
+  .kv span { color: var(--text-dim); }
+  @media (max-width: 600px) { .kv { grid-template-columns: 1fr; gap: 2px; } .kv span { margin-top: 8px; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
-<main class="page-wrap">
-  <section class="page-hero">
-    <div class="eyebrow">Eventos</div>
-    <h1>Eventos</h1>
-    <p class="subtitle">Os próximos eventos das suas guildas, com vagas e quem já confirmou.</p>
-    <span class="soon">Em construção · chega em breve</span>
-  </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Agenda</h3><p>Tudo que está marcado, em ordem.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Vagas abertas</h3><p>Onde ainda falta gente.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Histórico</h3><p>Eventos passados e presença.</p></div></section>
-</main>
+<main class="page-wrap" id="root"></main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/eventos/");</script>
+<script src="/assets/js/eventos.js"></script>
+<script>
+EmporioShell.renderTopbar("/eventos/");
+const root = document.getElementById("root");
+
+function linkify(s) {
+  return Emp.esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" rel="noopener">$1</a>');
+}
+
+function gcalLink(ev) {
+  const f = function (t) { return new Date(t).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); };
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(ev.titulo) +
+    "&dates=" + f(ev.at) + "/" + f(ev.at + 2 * 3600000) + "&details=" + encodeURIComponent(EmpEventos.link(ev));
+}
+function icsFile(ev) {
+  const f = function (t) { return new Date(t).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); };
+  const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Emporio dos Bots//PT", "BEGIN:VEVENT", "UID:" + ev.id + "@emporio",
+    "DTSTAMP:" + f(Date.now()), "DTSTART:" + f(ev.at), "DTEND:" + f(ev.at + 2 * 3600000), "SUMMARY:" + ev.titulo.replace(/[,;]/g, " "),
+    "DESCRIPTION:" + EmpEventos.link(ev), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  return URL.createObjectURL(new Blob([body], { type: "text/calendar" }));
+}
+
+function showEvent(ev) {
+  document.title = ev.titulo + " | Empório dos Bots";
+  const d = new Date(ev.at);
+  root.innerHTML =
+    '<div class="crumb"><a href="/eventos/">Eventos</a> / ' + Emp.esc(ev.titulo) + "</div>" +
+    '<section class="page-hero"><div class="eyebrow">' + Emp.esc(ev.conteudo || "Evento") + "</div><h1>" + Emp.esc(ev.titulo) + "</h1>" +
+    '<p class="subtitle">' + d.toLocaleString("pt-BR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) + " no seu horário.</p>" +
+    '<div class="count" id="count"></div></section>' +
+    '<div class="card"><div class="kv">' +
+    (ev.local ? "<span>Ponto de encontro</span><b>" + Emp.esc(ev.local) + "</b>" : "") +
+    (ev.ip ? "<span>IP mínimo</span><b>" + Emp.esc(ev.ip) + "</b>" : "") +
+    (ev.vagas ? "<span>Vagas</span><b>" + Emp.esc(ev.vagas) + "</b>" : "") +
+    (ev.comp ? "<span>Composição</span><div>" + linkify(ev.comp) + "</div>" : "") +
+    (ev.obs ? '<span>Observações</span><div style="white-space:pre-wrap">' + linkify(ev.obs) + "</div>" : "") +
+    "<span>Em UTC</span><div>" + d.toISOString().slice(0, 16).replace("T", " ") + "</div>" +
+    '</div><div class="row wrap" style="margin-top:18px"><a class="btn" href="' + gcalLink(ev) + '" target="_blank" rel="noopener">Google Agenda</a>' +
+    '<a class="btn secondary" download="evento.ics" href="' + icsFile(ev) + '">Baixar .ics</a>' +
+    '<button class="btn secondary" id="keep">Salvar nos meus eventos</button></div><p class="muted small" id="msg" style="min-height:18px;margin:8px 0 0"></p></div>';
+  document.getElementById("keep").onclick = function () { EmpEventos.put(ev); document.getElementById("msg").textContent = "Salvo neste navegador."; };
+  function tick() {
+    const s = Math.round((ev.at - Date.now()) / 1000);
+    const el = document.getElementById("count");
+    if (!el) return;
+    if (s <= 0) { el.innerHTML = '<span class="badge ' + (s > -7200 ? "good" : "") + '">' + (s > -7200 ? "Acontecendo agora" : "Já aconteceu") + "</span>"; return; }
+    const parts = [[Math.floor(s / 86400), "dias"], [Math.floor(s % 86400 / 3600), "horas"], [Math.floor(s % 3600 / 60), "min"], [s % 60, "seg"]];
+    el.innerHTML = parts.map(function (p) { return "<div><b>" + p[0] + "</b><span>" + p[1] + "</span></div>"; }).join("");
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+function showList() {
+  const all = EmpEventos.list();
+  const now = Date.now();
+  const next = all.filter(function (e) { return e.at >= now - 7200000; }).sort(function (a, b) { return a.at - b.at; });
+  const past = all.filter(function (e) { return e.at < now - 7200000; }).sort(function (a, b) { return b.at - a.at; });
+  function table(list) {
+    return '<div class="table-wrap"><table class="table"><thead><tr><th>Evento</th><th>Quando</th><th>Conteúdo</th></tr></thead><tbody>' + list.map(function (ev) {
+      return '<tr class="link" data-h="' + EmpEventos.encode(ev) + '"><td><b>' + Emp.esc(ev.titulo) + '</b></td><td class="muted">' +
+        new Date(ev.at).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
+        '</td><td class="muted">' + Emp.esc(ev.conteudo || "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+  }
+  root.innerHTML =
+    '<section class="page-hero"><div class="eyebrow">Eventos</div><h1>Eventos</h1><p class="subtitle">As calls que você criou ou salvou a partir de um link. Abra um evento para ver a contagem regressiva e adicionar à agenda.</p>' +
+    '<div class="row" style="margin-top:16px"><a class="btn" href="/criar-evento/">Criar evento</a></div></section>' +
+    '<div class="section"><h2>Próximos</h2>' + (next.length ? table(next) : '<p class="muted">Nenhum evento marcado. Crie um ou abra o link que alguém mandou no Discord.</p>') + "</div>" +
+    (past.length ? '<div class="section"><h2>Anteriores</h2>' + table(past) + "</div>" : "");
+  root.addEventListener("click", function (e) {
+    const tr = e.target.closest("tr[data-h]");
+    if (tr) { location.hash = tr.dataset.h; }
+  });
+}
+
+function route() {
+  if (location.hash.length > 1) {
+    try { showEvent(EmpEventos.decode(location.hash.slice(1))); return; } catch (e) {}
+  }
+  showList();
+}
+window.addEventListener("hashchange", function () { location.reload(); });
+route();
+</script>
 </body>
 </html>

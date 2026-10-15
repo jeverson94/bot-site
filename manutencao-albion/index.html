@@ -3,10 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Manutenção do Albion — Empório dos Bots</title>
-<meta name="description" content="Horário do downtime diário e das manutenções programadas.">
+<title>Manutenção do Albion | Empório dos Bots</title>
+<meta name="description" content="Horário da manutenção diária de Albion Online em cada região, convertido para o seu fuso, com contagem regressiva.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .cd { font-size: 34px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; margin: 6px 0 2px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +17,72 @@
   <section class="page-hero">
     <div class="eyebrow">Informação</div>
     <h1>Manutenção do Albion</h1>
-    <p class="subtitle">Horário do downtime diário e das manutenções programadas.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Os servidores do Albion caem todo dia para manutenção. A queda costuma durar de 5 a 30 minutos. Os horários abaixo seguem o que tem sido observado em cada região e já estão no seu fuso.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Downtime diário</h3><p>Quanto falta pra próxima manutenção.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>No seu horário</h3><p>Convertido pro fuso de Brasília.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Avisos</h3><p>Manutenções extras anunciadas.</p></div></section>
+  <div class="grid3" id="cards"></div>
+  <div class="section">
+    <h2>Quedas registradas</h2>
+    <p class="subtitle">Períodos em que uma região ficou fora do ar, montados a partir das consultas feitas pelas páginas de status. Quedas que ninguém acompanhou podem faltar.</p>
+    <div id="log"><div class="state"><span class="spin"></span>Carregando...</div></div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/manutencao-albion/");</script>
+<script>
+EmporioShell.renderTopbar("/manutencao-albion/");
+
+// Horário (UTC) em que a manutenção diária costuma começar em cada região.
+const DAILY = { am: 10, eu: 10, as: 23 };
+let live = {};
+
+function nextAt(hourUtc) {
+  const n = new Date();
+  const t = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), hourUtc, 0, 0);
+  return t > Date.now() ? t : t + 86400000;
+}
+function hms(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s / 3600)).padStart(2, "0") + ":" + String(Math.floor(s % 3600 / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+
+function draw() {
+  document.getElementById("cards").innerHTML = Emp.REGIONS.map(function (r) {
+    const at = nextAt(DAILY[r.id]);
+    const st = live[r.id];
+    const label = !st ? "" : st.status === "online" ? '<span class="badge good">No ar agora</span>' : st.status === "starting" ? '<span class="badge gold">Iniciando</span>' :
+      st.status === "unreachable" ? '<span class="badge">Sem resposta</span>' : '<span class="badge bad">Fora do ar agora</span>';
+    return '<div class="card"><div class="row between"><h2 style="margin:0">' + r.label + "</h2>" + label + '</div><div class="cd">' + hms(at - Date.now()) + '</div><div class="muted small">até a próxima manutenção, por volta das ' +
+      new Date(at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " no seu horário (" + String(DAILY[r.id]).padStart(2, "0") + ":00 UTC)</div></div>";
+  }).join("");
+}
+
+Emp.albion("status").then(function (d) {
+  live = d.now || {};
+  draw();
+  // Junta cada queda com a volta seguinte da mesma região.
+  const evs = d.events || [];
+  const out = [];
+  const open = {};
+  evs.forEach(function (e) {
+    if (e.s !== "online") { if (!open[e.r]) open[e.r] = e; }
+    else if (open[e.r]) { out.push({ r: e.r, from: open[e.r].t, to: e.t }); delete open[e.r]; }
+  });
+  Object.keys(open).forEach(function (r) { out.push({ r: r, from: open[r].t, to: null }); });
+  out.sort(function (a, b) { return Date.parse(b.from) - Date.parse(a.from); });
+  const name = function (r) { return (Emp.REGIONS.find(function (x) { return x.id === r; }) || {}).label || r; };
+  document.getElementById("log").innerHTML = out.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>Região</th><th>Caiu</th><th>Voltou</th><th class="num">Duração</th></tr></thead><tbody>' +
+    out.slice(0, 60).map(function (o) {
+      return "<tr><td>" + name(o.r) + "</td><td>" + Emp.dateTime(o.from) + "</td><td>" + (o.to ? Emp.dateTime(o.to) : '<span class="badge bad">ainda fora</span>') +
+        '</td><td class="num">' + (o.to ? Emp.duration((Date.parse(o.to) - Date.parse(o.from)) / 1000) : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>" : '<p class="muted">Nenhuma queda registrada ainda.</p>';
+}).catch(function () {
+  document.getElementById("log").innerHTML = '<p class="muted">Não foi possível consultar o status agora.</p>';
+});
+
+draw();
+setInterval(draw, 1000);
+</script>
 </body>
 </html>

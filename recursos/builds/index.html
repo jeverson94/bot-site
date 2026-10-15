@@ -3,25 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Editor de builds — Empório dos Bots</title>
-<meta name="description" content="Monte o equipamento completo de cada função, com swaps e habilidades.">
+<title>Recursos: Builds | Empório dos Bots</title>
+<meta name="description" content="Builds compartilhadas pelos membros, com todos os itens, habilidades possíveis de cada slot e nota da comunidade.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>.tabs a.tab { text-decoration: none; }</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
+  <div class="tabs" style="margin-top:6px"><a class="tab" href="/recursos/eventos/">Eventos</a><a class="tab on" href="/recursos/builds/">Builds</a><a class="tab" href="/recursos/inscricoes/">Inscrições</a><a class="tab" href="/recursos/economia/">Economia</a><a class="tab" href="/recursos/discord/">Discord</a></div>
   <section class="page-hero">
     <div class="eyebrow">Recursos</div>
-    <h1>Editor de builds</h1>
-    <p class="subtitle">Monte o equipamento completo de cada função, com swaps e habilidades.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <h1>A biblioteca de builds das guildas</h1>
+    <p class="subtitle">Builds compartilhadas pelos membros, com todos os itens, habilidades possíveis de cada slot e nota da comunidade.</p>
+    <div class="row wrap" style="margin-top:18px"><a class="btn" href="/builds/">Abrir a biblioteca</a></div>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Paperdoll</h3><p>Clique no slot e escolha o item.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Swaps</h3><p>Itens alternativos pra cada slot.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Biblioteca</h3><p>Salve e reaproveite em qualquer comp.</p></div></section>
+  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Cartões com o equipamento</h3><p>Cada build aparece com a mini prévia do equipamento, a função na party, o tipo de conteúdo e quem compartilhou.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Página completa</h3><p>Ao abrir uma build você vê o nome de cada item em português, o tier e as habilidades que cada slot pode usar, com os ícones do jogo.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Avaliação</h3><p>Quem entra com o Discord pode dar de 1 a 5 estrelas. A média aparece no cartão e ajuda a achar as builds mais usadas.</p></div><div class="feature-card"><div class="feature-num">04</div><h3>Busca e filtros</h3><p>Filtre por função (tank, healer, suporte, DPS) e por conteúdo, ou busque pelo nome da build e do autor.</p></div></section>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/recursos/builds/");</script>
+<script>
+EmporioShell.renderTopbar("/recursos/eventos/");
+</script>
 </body>
 </html>

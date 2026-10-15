@@ -3,31 +3,113 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Empório dos Bots — Builds, composições e eventos</title>
+<title>Empório dos Bots | Builds, batalhas e ferramentas de Albion Online</title>
+<meta name="description" content="Builds, composições, batalhas, mercado, mapa e outras ferramentas de Albion Online para jogadores e guildas. Gratuito, com login pelo Discord.">
 <link rel="stylesheet" href="/assets/css/theme.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .hero { padding: 54px 0 30px; max-width: 760px; }
+  .hero h1 { font-size: 48px; line-height: 1.1; margin: 16px 0 16px; letter-spacing: -.5px; }
+  .hero p { font-size: 16.5px; color: var(--text-dim); line-height: 1.6; max-width: 600px; margin: 0 0 26px; }
+  .battle-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
+  .battle-row:last-child { border-bottom: none; }
+  .battle-row:hover b { color: var(--gold); }
+  .battle-row b { color: var(--text); font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .battle-row .meta { margin-left: auto; text-align: right; white-space: nowrap; font-size: 12.5px; color: var(--text-dim); }
+  .bcard { display: block; color: inherit; }
+  .bcard:hover { text-decoration: none; }
+  .mini { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 10px 0; }
+  .mini img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--bg-soft); border-radius: 6px; }
+  .tools-group h3 { color: var(--gold); font-size: 12px; text-transform: uppercase; letter-spacing: .8px; margin: 0 0 10px; }
+  .tools-group a { display: block; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text); font-size: 14px; }
+  .tools-group a span { display: block; color: var(--text-dim); font-size: 12.5px; }
+  .tools-group a:hover { text-decoration: none; color: var(--gold); }
+  @media (max-width: 700px) { .hero h1 { font-size: 34px; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
+<main class="page-wrap">
+  <section class="hero">
+    <span class="pill">GRATUITO · LOGIN PELO DISCORD</span>
+    <h1>Ferramentas de Albion para a sua guilda.</h1>
+    <p>Biblioteca de builds, montador de composições, anúncio de calls, batalhas ao vivo, ranking de guildas, mercado e mapa com rotas.</p>
+    <div class="row wrap">
+      <a class="btn" href="/builds/" style="padding:12px 22px">Ver as builds</a>
+      <a class="btn secondary" href="/batalhas/" style="padding:12px 22px">Batalhas recentes</a>
+    </div>
+  </section>
 
-<div class="page-wrap" style="padding-top:70px;">
-  <div class="pill" style="margin-bottom:18px;">SEM ASSINATURA</div>
-  <h1 style="font-size:46px; line-height:1.15; margin:0 0 16px; max-width:640px;">
-    Um lugar para toda a sua <span style="color:var(--gold);">party.</span>
-  </h1>
-  <p class="subtitle" style="font-size:16px; max-width:460px; margin-bottom:28px;">
-    Builds, composições e eventos.<br>Seu arsenal organizado, sempre gratuito.
-  </p>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <a class="btn" href="/builds/" style="padding:12px 24px; font-size:14px;">Explorar a biblioteca →</a>
-    <a class="btn secondary" href="/login/" style="padding:12px 24px; font-size:14px;">Entrar com Discord</a>
+  <div class="grid2">
+    <div class="card">
+      <div class="row between wrap" style="margin-bottom:6px"><h2 style="margin:0">Últimas batalhas</h2><div id="region"></div></div>
+      <p class="muted small" style="margin:0 0 6px">Lutas com 10 ou mais jogadores.</p>
+      <div id="battles"></div>
+      <a href="/batalhas/" class="small">Ver todas as batalhas</a>
+    </div>
+    <div class="card">
+      <h2>Builds mais bem avaliadas</h2>
+      <div class="grid2" id="builds" style="gap:12px"></div>
+      <a href="/builds/" class="small">Abrir a biblioteca</a>
+    </div>
   </div>
-</div>
 
-<div class="footer">Empório dos Bots</div>
-
+  <div class="section">
+    <h2>Tudo o que tem no site</h2>
+    <div class="grid3" id="tools" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"></div>
+  </div>
+</main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/");</script>
+<script>
+EmporioShell.renderTopbar("/");
+
+let region = Emp.getRegion();
+async function battles() {
+  const el = document.getElementById("battles");
+  el.innerHTML = Emp.loading("Buscando batalhas...");
+  try {
+    const list = (await Emp.albion("battles", { s: region, limit: 50, sort: "recent" }))
+      .filter(function (b) { return Object.keys(b.players || {}).length >= 10; }).slice(0, 5);
+    el.innerHTML = list.length ? list.map(function (b) {
+      const sides = {};
+      Object.values(b.players).forEach(function (p) { const k = p.allianceName || p.guildName; if (k) sides[k] = (sides[k] || 0) + 1; });
+      const names = Object.keys(sides).sort(function (a, c) { return sides[c] - sides[a]; }).slice(0, 3).join(", ");
+      return '<div class="battle-row" data-id="' + b.id + '"><div style="min-width:0"><b>' + Emp.esc(names || "Jogadores sem guilda") + '</b><span class="muted small">' + Emp.ago(b.startTime) +
+        '</span></div><div class="meta">' + Object.keys(b.players).length + " jogadores<br>" + b.totalKills + " abates · " + Emp.num(b.totalFame) + "</div></div>";
+    }).join("") : '<p class="muted">Nenhuma batalha grande nas últimas lutas registradas.</p>';
+  } catch (e) {
+    el.innerHTML = '<p class="muted">' + Emp.esc(e.message) + "</p>";
+  }
+}
+document.getElementById("battles").addEventListener("click", function (e) {
+  const r = e.target.closest("[data-id]");
+  if (r) location.href = "/batalhas/" + r.dataset.id + "?s=" + region;
+});
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; battles(); });
+battles();
+
+fetch(window.EMPORIO_CONFIG.API_BASE + "/api/public/builds").then(function (r) { return r.json(); }).then(function (list) {
+  const top = (list || []).slice().sort(function (a, b) {
+    return (b.avg_rating || 0) * Math.log(2 + (b.rating_count || 0)) - (a.avg_rating || 0) * Math.log(2 + (a.rating_count || 0));
+  }).slice(0, 4);
+  const slots = ["mainhand", "offhand", "head", "chest", "shoes"];
+  document.getElementById("builds").innerHTML = top.map(function (b) {
+    return '<a class="bcard card" style="padding:12px" href="/builds/' + encodeURIComponent(b.public_id) + '"><b style="font-size:14px">' + Emp.esc(b.nome) + '</b><div class="mini">' +
+      slots.map(function (s) { const it = ((b.equip || {})[s] || {}).item; return it ? '<img src="' + Emp.icon(it) + '" alt="" loading="lazy">' : '<img alt="" style="opacity:.2">'; }).join("") +
+      '</div><span class="muted small">' + Emp.esc(b.categoria || "") + " · ★ " + (b.avg_rating ? b.avg_rating.toFixed(1) : "sem nota") + "</span></a>";
+  }).join("") || '<p class="muted">Nenhuma build publicada ainda.</p>';
+}).catch(function () {
+  document.getElementById("builds").innerHTML = '<p class="muted">Não foi possível carregar as builds agora.</p>';
+});
+
+document.getElementById("tools").innerHTML = EmporioShell.MENU.map(function (g) {
+  return '<div class="card tools-group"><h3>' + g.label + "</h3>" + g.items.map(function (i) {
+    return '<a href="' + i.href + '">' + i.label + "<span>" + i.desc + "</span></a>";
+  }).join("") + "</div>";
+}).join("");
+</script>
 </body>
 </html>

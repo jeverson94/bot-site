@@ -1,39 +1,38 @@
-// Empório dos Bots — topo (menu com grupos) e rodapé compartilhados.
-// Estrutura de URLs espelha a do albionzvz.com, adaptada pro PT-BR.
+// Empório dos Bots: topo (menu com grupos) e rodapé compartilhados.
 (function () {
   const MENU = [
     { label: "Eventos", items: [
-      { href: "/criar-evento/", label: "Criar evento", desc: "Monte a call e pingue no Discord" },
-      { href: "/eventos/", label: "Eventos", desc: "Próximos eventos da guilda" },
-      { href: "/painel/guildas/", label: "Minhas guildas", desc: "Configurações e membros" },
+      { href: "/criar-evento/", label: "Criar evento", desc: "Monte o anúncio da call com horário local" },
+      { href: "/eventos/", label: "Eventos", desc: "Calls da sua guilda" },
+      { href: "/painel/guildas/", label: "Minhas guildas", desc: "Sua conta e as guildas com o bot" },
     ]},
     { label: "Batalhas", items: [
-      { href: "/batalhas/", label: "Batalhas", desc: "Lutas recentes ao vivo" },
-      { href: "/guildas/", label: "Ranking de guildas", desc: "Quem está dominando" },
-      { href: "/batalhas/guerras/", label: "Guerras", desc: "Rivalidades acompanhadas" },
-      { href: "/batalhas/meta/", label: "Tierlist de itens", desc: "O meta das lutas" },
+      { href: "/batalhas/", label: "Batalhas", desc: "Lutas recentes por servidor" },
+      { href: "/guildas/", label: "Ranking de guildas", desc: "Quem mais lutou nas últimas horas" },
+      { href: "/batalhas/guerras/", label: "Guerras", desc: "Duas guildas, frente a frente" },
+      { href: "/batalhas/meta/", label: "Tierlist de itens", desc: "O que está sendo usado nas ZvZ" },
     ]},
     { label: "Ferramentas", items: [
       { href: "/builds/", label: "Builds", desc: "Biblioteca da comunidade" },
-      { href: "/composicoes/", label: "Composições", desc: "Comps prontas pra party" },
-      { href: "/vod-review/", label: "VOD review", desc: "Analise as gravações" },
-      { href: "/mapa/", label: "Mapa", desc: "Territórios e rotas" },
-      { href: "/pontos-temporada/", label: "Pontos de temporada", desc: "Placar da season" },
-      { href: "/mercado/", label: "Mercado", desc: "Preços dos itens" },
+      { href: "/composicoes/", label: "Composições", desc: "Monte a comp e mande o link" },
+      { href: "/vod-review/", label: "VOD review", desc: "Desenhe e comente em cima do vídeo" },
+      { href: "/mapa/", label: "Mapa", desc: "Zonas e o caminho mais curto" },
+      { href: "/pontos-temporada/", label: "Pontos de temporada", desc: "Might e SP por categoria" },
+      { href: "/mercado/", label: "Mercado", desc: "Preços por cidade, tier e encanto" },
     ]},
     { label: "Diversão", items: [
-      { href: "/disarray/", label: "Disarray", desc: "Calculadora de desordem" },
-      { href: "/clipes/", label: "Clipes", desc: "As melhores jogadas" },
-      { href: "/jogos/", label: "Jogos", desc: "Minijogos de Albion" },
+      { href: "/disarray/", label: "Disarray", desc: "Tabela de desordem e montarias" },
+      { href: "/clipes/", label: "Clipes", desc: "Jogadas da guilda" },
+      { href: "/jogos/", label: "Jogos", desc: "Adivinhe o item e a habilidade" },
     ]},
     { label: "Informação", items: [
-      { href: "/docs/", label: "Documentação", desc: "Como usar tudo" },
+      { href: "/docs/", label: "Documentação", desc: "Como usar cada página" },
       { href: "/recursos/eventos/", label: "Recursos", desc: "O que o Empório faz" },
-      { href: "/status/", label: "Status dos servidores", desc: "Albion e o bot" },
-      { href: "/manutencao-albion/", label: "Manutenção do Albion", desc: "Horários de downtime" },
-      { href: "/blog/", label: "Blog", desc: "Novidades" },
-      { href: "/sobre/", label: "Sobre nós", desc: "Quem faz o Empório" },
-      { href: "/contato/", label: "Contato", desc: "Fale com a gente" },
+      { href: "/status/", label: "Status dos servidores", desc: "Albion e o bot agora" },
+      { href: "/manutencao-albion/", label: "Manutenção do Albion", desc: "Horário da queda diária" },
+      { href: "/blog/", label: "Blog", desc: "Novidades do site" },
+      { href: "/sobre/", label: "Sobre", desc: "Quem faz o Empório" },
+      { href: "/contato/", label: "Contato", desc: "Dúvidas, bugs e pedidos" },
     ]},
   ];
 
@@ -151,9 +150,9 @@
     f.innerHTML =
       '<footer class="site-footer"><div class="cols">' +
       '<div><div class="brand-group" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span class="logo-x" style="width:30px;height:30px;border-radius:8px;background:var(--gold-soft);display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:800;">X</span><b style="font-size:16px;">Empório <span style="color:var(--gold)">dos Bots</span></b></div>' +
-      '<p style="color:var(--text-dim);font-size:13px;line-height:1.6;margin:0;">Builds, composições, eventos e o bot da sua guilda num lugar só. Sempre gratuito.</p></div>' +
+      '<p style="color:var(--text-dim);font-size:13px;line-height:1.6;margin:0;">Builds, composições, batalhas e ferramentas de Albion Online para a sua guilda. Gratuito.</p></div>' +
       cols + '</div>' +
-      '<div class="legal"><span>© ' + new Date().getFullYear() + ' Empório dos Bots · Site feito por fãs, sem vínculo com a Sandbox Interactive.</span>' +
+      '<div class="legal"><span>© ' + new Date().getFullYear() + ' Empório dos Bots. Site feito por fãs, sem vínculo com a Sandbox Interactive.</span>' +
       '<span><a href="/termos/">Termos de uso</a><a href="/privacidade/">Privacidade</a></span></div></footer>';
   }
 

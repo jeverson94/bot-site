@@ -3,10 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pontos de temporada — Empório dos Bots</title>
-<meta name="description" content="Placar da temporada de territórios, guilda por guilda.">
+<title>Pontos de temporada | Empório dos Bots</title>
+<meta name="description" content="Calculadora de Might e pontos de temporada (SP) de Albion Online para cada categoria da temporada de guildas.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .cat-card { cursor: pointer; }
+  .cat-card.on { border-color: rgba(226,188,98,.6); }
+  .cat-card h3 { font-size: 14.5px; margin: 0 0 10px; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
+  .kv span { color: var(--text-dim); }
+  .kv b { text-align: right; font-variant-numeric: tabular-nums; }
+  .tbl-scroll { max-height: 520px; overflow-y: auto; }
+  .table tr.in td { background: rgba(226,188,98,.07); }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +24,109 @@
   <section class="page-hero">
     <div class="eyebrow">Ferramentas</div>
     <h1>Pontos de temporada</h1>
-    <p class="subtitle">Placar da temporada de territórios, guilda por guilda.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Cada categoria da temporada de guildas tem 99 níveis. Might é o progresso dentro da categoria, e cada nível completo rende pontos de temporada (SP) para o ranking. Os números vêm das tabelas do cliente do jogo.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Placar</h3><p>Pontos acumulados de cada guilda.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Evolução</h3><p>Como o placar mudou dia a dia.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Projeção</h3><p>Quem tende a terminar na frente.</p></div></section>
+
+  <div class="card">
+    <h2>Calculadora</h2>
+    <div class="grid3">
+      <label class="field">Categoria <select class="select" id="cat"></select></label>
+      <label class="field">Nível atual <select class="select" id="from"></select></label>
+      <label class="field">Nível desejado <select class="select" id="to"></select></label>
+    </div>
+    <div class="stats" style="margin-top:16px" id="calc"></div>
+  </div>
+
+  <div class="section">
+    <h2>Todas as categorias</h2>
+    <p class="subtitle">Do nível 0 ao 99. Quanto menor o Might por SP, mais barato é subir o ranking por ali. Clique numa categoria para usar na calculadora.</p>
+    <div class="feature-grid" id="cards"></div>
+  </div>
+
+  <div class="section">
+    <h2>Nível a nível</h2>
+    <p class="subtitle" id="lv-sub"></p>
+    <div class="table-wrap tbl-scroll">
+      <table class="table">
+        <thead><tr><th>Nível</th><th class="num">Might do nível</th><th class="num">Might acumulado</th><th class="num">SP do nível</th><th class="num">SP acumulado</th><th class="num">Might por SP</th></tr></thead>
+        <tbody id="levels"></tbody>
+      </table>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/pontos-temporada/");</script>
+<script>
+EmporioShell.renderTopbar("/pontos-temporada/");
+
+let CATS = [];
+const $ = function (id) { return document.getElementById(id); };
+
+function mightAt(c, lvl) { return lvl <= 0 ? 0 : c.m[lvl - 1]; }
+function spBetween(c, a, b) { let s = 0; for (let i = a; i < b; i++) s += c.s[i]; return s; }
+function cur() { return CATS[parseInt($("cat").value, 10)]; }
+
+function fillLevels() {
+  const f = parseInt($("from").value || "0", 10), t = parseInt($("to").value || "10", 10);
+  $("from").innerHTML = Array.from({ length: 99 }, function (_, i) { return '<option value="' + i + '">' + (i === 0 ? "0 (não começou)" : i) + "</option>"; }).join("");
+  $("to").innerHTML = Array.from({ length: 99 }, function (_, i) { return '<option value="' + (i + 1) + '">' + (i + 1) + "</option>"; }).join("");
+  $("from").value = String(Math.min(f, 98));
+  $("to").value = String(Math.max(t, f + 1));
+}
+
+function calc() {
+  const c = cur();
+  let f = parseInt($("from").value, 10), t = parseInt($("to").value, 10);
+  if (t <= f) { t = f + 1; $("to").value = String(t); }
+  const might = mightAt(c, t) - mightAt(c, f);
+  const sp = spBetween(c, f, t);
+  $("calc").innerHTML =
+    '<div class="stat"><b>' + Emp.num(sp) + '</b><span>SP ganhos do nível ' + f + " ao " + t + "</span></div>" +
+    '<div class="stat"><b>' + Emp.num(might) + "</b><span>Might necessário</span></div>" +
+    '<div class="stat"><b>' + Emp.num(might / Math.max(1, sp)) + "</b><span>Might por SP na faixa</span></div>" +
+    '<div class="stat"><b>' + Emp.num(mightAt(c, t)) + "</b><span>Might total ao chegar no " + t + "</span></div>";
+  $("lv-sub").textContent = c.n + ". A faixa da calculadora aparece destacada.";
+  let acc = 0;
+  $("levels").innerHTML = c.m.map(function (m, i) {
+    const lvl = i + 1, step = m - mightAt(c, i);
+    acc += c.s[i];
+    return '<tr class="' + (lvl > f && lvl <= t ? "in" : "") + '"><td>' + lvl + '</td><td class="num">' + Emp.int(step) + '</td><td class="num">' + Emp.num(m) +
+      '</td><td class="num">' + Emp.int(c.s[i]) + '</td><td class="num">' + Emp.int(acc) + '</td><td class="num">' + Emp.num(step / Math.max(1, c.s[i])) + "</td></tr>";
+  }).join("");
+  document.querySelectorAll(".cat-card").forEach(function (el) { el.classList.toggle("on", el.dataset.i === $("cat").value); });
+}
+
+function cards() {
+  const list = CATS.map(function (c, i) {
+    const sp = spBetween(c, 0, 99), m = c.m[98];
+    return { i: i, c: c, sp: sp, m: m, r: m / sp, flat: c.s.every(function (x) { return x === c.s[0]; }) };
+  }).sort(function (a, b) { return a.r - b.r; });
+  $("cards").innerHTML = list.map(function (x) {
+    return '<div class="feature-card cat-card" data-i="' + x.i + '"><h3>' + Emp.esc(x.c.n) + '</h3><div class="kv"><span>SP total</span><b>' + Emp.num(x.sp) +
+      "</b><span>Might total</span><b>" + Emp.num(x.m) + "</b><span>Might por SP</span><b>" + Emp.num(x.r) + '</b></div><p class="small" style="margin-top:10px">' +
+      (x.flat ? "SP fixo por nível, o custo em Might sobe a cada nível." : "O SP cresce junto com o nível.") + "</p></div>";
+  }).join("");
+}
+
+fetch("/assets/data/temporada.json").then(function (r) { return r.json(); }).then(function (d) {
+  CATS = d;
+  $("cat").innerHTML = CATS.map(function (c, i) { return '<option value="' + i + '">' + Emp.esc(c.n) + "</option>"; }).join("");
+  fillLevels();
+  cards();
+  calc();
+}).catch(function () {
+  $("calc").innerHTML = '<p class="muted">Não foi possível carregar as tabelas.</p>';
+});
+["cat", "from", "to"].forEach(function (id) { $(id).addEventListener("change", calc); });
+$("cards").addEventListener("click", function (e) {
+  const c = e.target.closest(".cat-card");
+  if (!c) return;
+  $("cat").value = c.dataset.i;
+  calc();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+</script>
 </body>
 </html>

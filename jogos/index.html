@@ -3,10 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jogos — Empório dos Bots</title>
-<meta name="description" content="Minijogos de Albion pra passar o tempo entre uma call e outra.">
+<title>Jogos | Empório dos Bots</title>
+<meta name="description" content="Minijogos de Albion Online: adivinhe o item pelo ícone borrado e acerte o nome da habilidade.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .game { max-width: 560px; margin: 0 auto; text-align: center; }
+  .pic { width: 200px; height: 200px; margin: 10px auto 16px; border-radius: 18px; background: var(--bg-soft); border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .pic img { width: 92%; height: 92%; object-fit: contain; transition: filter .4s ease; }
+  .tries { display: flex; gap: 6px; justify-content: center; margin: 10px 0; }
+  .tries i { width: 30px; height: 6px; border-radius: 4px; background: rgba(255,255,255,.1); }
+  .tries i.bad { background: #e66a6a; }
+  .tries i.good { background: #6fcf8e; }
+  .guesses { list-style: none; padding: 0; margin: 10px 0 0; font-size: 13.5px; color: var(--text-dim); }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .opts button { background: var(--bg-soft); border: 1px solid rgba(255,255,255,.08); color: var(--text); border-radius: 10px; padding: 12px; font: inherit; font-size: 14px; cursor: pointer; }
+  .opts button:hover { border-color: rgba(226,188,98,.5); }
+  .opts button.good { border-color: #6fcf8e; color: #6fcf8e; }
+  .opts button.bad { border-color: #e66a6a; color: #e66a6a; }
+  .result { min-height: 24px; margin-top: 12px; font-weight: 700; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +30,139 @@
   <section class="page-hero">
     <div class="eyebrow">Diversão</div>
     <h1>Jogos</h1>
-    <p class="subtitle">Minijogos de Albion pra passar o tempo entre uma call e outra.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Dois jogos rápidos com os itens e habilidades do Albion. O desafio do dia é o mesmo item para todo mundo.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Adivinhe o item</h3><p>Pelo ícone ou pela habilidade.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Quiz de builds</h3><p>Monte a build certa pra cada função.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Ranking</h3><p>Quem da guilda acerta mais.</p></div></section>
+  <div class="toolbar" style="justify-content:center">
+    <div class="tabs" id="tabs"><button class="tab on" data-g="daily">Item do dia</button><button class="tab" data-g="free">Item livre</button><button class="tab" data-g="spell">Habilidades</button></div>
+  </div>
+  <div class="card game" id="game"></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/jogos/");</script>
+<script>
+EmporioShell.renderTopbar("/jogos/");
+
+const SLOT_PT = { mainhand: "uma arma", offhand: "um item de mão secundária", head: "um elmo", chest: "uma armadura", shoes: "um par de botas", cape: "uma capa" };
+const BLUR = [18, 12, 8, 5, 3, 0];
+const game = document.getElementById("game");
+let DB = null, POOL = [], SPELLS = [];
+let mode = "daily";
+
+function clean(n) { return n.replace(/ do Ancião$/, ""); }
+function dayKey() { return new Date().toISOString().slice(0, 10); }
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
+function stats(key) { try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { return {}; } }
+function setStats(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+
+function itemGame(item, daily) {
+  let tries = 0, done = false;
+  const guesses = [];
+  const st = daily ? stats("emp_jogo_dia") : null;
+  if (daily && st.dia === dayKey()) { done = true; tries = st.tries; }
+  function draw(msg, ok) {
+    const blur = done ? 0 : BLUR[Math.min(tries, BLUR.length - 1)];
+    game.innerHTML = "<h2>" + (daily ? "Item do dia" : "Que item é esse?") + "</h2>" +
+      '<p class="muted small">' + (daily ? "Um item novo por dia, igual para todos. " : "") + "Você tem 5 tentativas e a imagem fica mais nítida a cada erro.</p>" +
+      '<div class="pic"><img src="' + Emp.icon(item.id) + '" alt="" style="filter:blur(' + blur + 'px)"></div>' +
+      '<div class="tries">' + [0, 1, 2, 3, 4].map(function (i) { return "<i class=\"" + (i < tries ? (done && ok && i === tries - 1 ? "good" : "bad") : "") + '"></i>'; }).join("") + "</div>" +
+      (tries >= 2 && !done ? '<p class="muted small">Dica: é ' + SLOT_PT[item.s] + ".</p>" : "") +
+      (done ? '<div class="result ' + (ok ? "good" : "bad") + '">' + Emp.esc(msg || "") + "</div>" :
+        '<div class="row" style="margin-top:10px"><input class="input" id="g" list="names" placeholder="Digite o nome do item" style="flex:1" autocomplete="off"><button class="btn" id="go">Chutar</button></div>') +
+      '<ul class="guesses">' + guesses.map(function (g) { return "<li>✕ " + Emp.esc(g) + "</li>"; }).join("") + "</ul>" +
+      (done && !daily ? '<button class="btn" id="again" style="margin-top:14px">Próximo item</button>' : "") +
+      (daily ? '<p class="muted small" style="margin-top:14px">Sequência atual: ' + (stats("emp_jogo_dia").seq || 0) + "</p>" : "");
+    const g = document.getElementById("g");
+    if (g) {
+      g.focus();
+      const go = function () {
+        const v = g.value.trim().toLowerCase();
+        if (!v) return;
+        tries++;
+        if (v === item.n.toLowerCase()) { finish(true); return; }
+        guesses.push(g.value.trim());
+        if (tries >= 5) finish(false); else draw();
+      };
+      document.getElementById("go").onclick = go;
+      g.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+    }
+    const again = document.getElementById("again");
+    if (again) again.onclick = function () { start("free"); };
+  }
+  function finish(ok) {
+    done = true;
+    if (daily) {
+      const s = stats("emp_jogo_dia");
+      setStats("emp_jogo_dia", { dia: dayKey(), tries: tries, ok: ok, seq: ok ? (s.dia === new Date(Date.now() - 86400000).toISOString().slice(0, 10) ? (s.seq || 0) + 1 : 1) : 0 });
+    }
+    draw(ok ? "Acertou: " + item.n : "Era " + item.n, ok);
+  }
+  if (done) draw(st.ok ? "Você já acertou hoje: " + item.n : "Hoje era " + item.n + ". Volte amanhã.", st.ok);
+  else draw();
+}
+
+function spellGame() {
+  const st = stats("emp_jogo_hab");
+  const pick = SPELLS[Math.floor(Math.random() * SPELLS.length)];
+  const opts = [pick];
+  while (opts.length < 4) {
+    const o = SPELLS[Math.floor(Math.random() * SPELLS.length)];
+    if (!opts.some(function (x) { return x.n === o.n; })) opts.push(o);
+  }
+  opts.sort(function () { return Math.random() - 0.5; });
+  game.innerHTML = "<h2>Qual é essa habilidade?</h2>" +
+    '<div class="pic" style="width:140px;height:140px"><img src="' + Emp.spellIcon(pick.id) + '" alt=""></div>' +
+    '<div class="opts">' + opts.map(function (o) { return '<button data-n="' + Emp.esc(o.n) + '">' + Emp.esc(o.n) + "</button>"; }).join("") + "</div>" +
+    '<div class="result" id="res"></div><p class="muted small">Acertos seguidos: <b id="seq">' + (st.seq || 0) + "</b> · recorde: " + (st.best || 0) + "</p>";
+  game.querySelector(".opts").onclick = function (e) {
+    const b = e.target.closest("button[data-n]");
+    if (!b || this.dataset.done) return;
+    this.dataset.done = "1";
+    const ok = b.dataset.n === pick.n;
+    this.querySelectorAll("button").forEach(function (x) { if (x.dataset.n === pick.n) x.classList.add("good"); });
+    if (!ok) b.classList.add("bad");
+    const seq = ok ? (st.seq || 0) + 1 : 0;
+    setStats("emp_jogo_hab", { seq: seq, best: Math.max(st.best || 0, seq) });
+    document.getElementById("seq").textContent = seq;
+    document.getElementById("res").innerHTML = (ok ? '<span class="good">Acertou.</span>' : '<span class="bad">Era ' + Emp.esc(pick.n) + ".</span>") +
+      ' <button class="btn secondary" id="next" style="margin-left:8px;padding:6px 12px">Próxima</button>';
+    document.getElementById("next").onclick = spellGame;
+  };
+}
+
+function start(m) {
+  mode = m;
+  document.querySelectorAll("#tabs .tab").forEach(function (x) { x.classList.toggle("on", x.dataset.g === m); });
+  if (m === "spell") return spellGame();
+  const item = m === "daily" ? POOL[hash("emporio" + dayKey()) % POOL.length] : POOL[Math.floor(Math.random() * POOL.length)];
+  itemGame(item, m === "daily");
+}
+
+document.getElementById("tabs").onclick = function (e) { const b = e.target.closest("[data-g]"); if (b) start(b.dataset.g); };
+
+game.innerHTML = Emp.loading();
+Emp.items().then(function (d) {
+  DB = d;
+  POOL = Object.keys(DB.items).filter(function (id) {
+    const it = DB.items[id];
+    return id.indexOf("T8_") === 0 && SLOT_PT[it.s] && id.indexOf("_TOOL_") < 0;
+  }).sort().map(function (id) { return { id: id, n: clean(DB.items[id].n), s: DB.items[id].s }; });
+  const seen = {};
+  SPELLS = Object.keys(DB.spells).filter(function (k) {
+    const s = DB.spells[k];
+    if (!s.n || seen[s.n] || /^PASSIVE_|FOOD_|POTION_/.test(k)) return false;
+    seen[s.n] = 1;
+    return true;
+  }).map(function (k) { return { id: k, n: DB.spells[k].n }; });
+  const dl = document.createElement("datalist");
+  dl.id = "names";
+  const names = {};
+  POOL.forEach(function (p) { names[p.n] = 1; });
+  dl.innerHTML = Object.keys(names).sort().map(function (n) { return '<option value="' + Emp.esc(n) + '">'; }).join("");
+  document.body.appendChild(dl);
+  start("daily");
+});
+</script>
 </body>
 </html>

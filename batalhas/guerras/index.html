@@ -3,10 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guerras — Empório dos Bots</title>
-<meta name="description" content="Acompanhe rivalidades: todas as lutas entre duas guildas, com o placar acumulado.">
+<title>Guerras | Empório dos Bots</title>
+<meta name="description" content="Rivalidades entre guildas e alianças de Albion Online: quem lutou contra quem e quem levou a melhor.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
+  .vs .side { text-align: center; }
+  .vs .side b { display: block; font-size: 18px; color: var(--text); }
+  .vs .score { font-size: 26px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+  .bar2 { display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.06); margin: 8px 0 2px; }
+  .bar2 i { display: block; height: 100%; }
+  .bar2 .a { background: var(--gold); }
+  .bar2 .b { background: #6f8fcf; }
+  .pick { position: relative; }
+  .pick .opts { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; margin-top: 4px; z-index: 5; max-height: 260px; overflow-y: auto; display: none; }
+  .pick .opts.open { display: block; }
+  .pick .opts div { padding: 9px 12px; cursor: pointer; font-size: 13.5px; }
+  .pick .opts div:hover { background: var(--gold-soft); }
+  .rival { cursor: pointer; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +30,187 @@
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
     <h1>Guerras</h1>
-    <p class="subtitle">Acompanhe rivalidades: todas as lutas entre duas guildas, com o placar acumulado.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">As rivalidades que mais se repetiram nas batalhas recentes e um comparador para colocar duas guildas frente a frente.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Placar</h3><p>Kills, mortes e fama de cada lado ao longo do tempo.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Histórico</h3><p>Cada luta da guerra em ordem.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Alertas</h3><p>Aviso no Discord quando a rival aparecer.</p></div></section>
+
+  <div class="toolbar"><div id="region"></div></div>
+
+  <div class="card">
+    <h2>Comparar duas guildas</h2>
+    <div class="grid2">
+      <div class="pick"><input class="input" id="qa" placeholder="Primeira guilda" style="width:100%"><div class="opts" id="oa"></div></div>
+      <div class="pick"><input class="input" id="qb" placeholder="Segunda guilda" style="width:100%"><div class="opts" id="ob"></div></div>
+    </div>
+    <div id="h2h" style="margin-top:16px"></div>
+  </div>
+
+  <div class="section">
+    <h2>Rivalidades recentes</h2>
+    <p class="subtitle" id="rv-sub">Os dois maiores lados de cada batalha com 10 ou mais jogadores.</p>
+    <div id="rivals"></div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/batalhas/guerras/");</script>
+<script>
+EmporioShell.renderTopbar("/batalhas/guerras/");
+
+let region = Emp.getRegion();
+const picked = { a: null, b: null };
+
+function vsBlock(A, B, a, b, extra) {
+  const tot = Math.max(1, a.k + b.k);
+  return '<div class="vs"><div class="side"><b>' + Emp.esc(A) + '</b><span class="muted small">' + a.w + " vitórias</span></div>" +
+    '<div class="score">' + a.w + " : " + b.w + '</div><div class="side"><b>' + Emp.esc(B) + '</b><span class="muted small">' + b.w + " vitórias</span></div></div>" +
+    '<div class="bar2"><i class="a" style="width:' + (100 * a.k / tot) + '%"></i><i class="b" style="width:' + (100 * b.k / tot) + '%"></i></div>' +
+    '<div class="row between small muted"><span>' + Emp.int(a.k) + " abates · " + Emp.num(a.f) + " de fama</span><span>" + Emp.int(b.k) + " abates · " + Emp.num(b.f) + " de fama</span></div>" +
+    (extra || "");
+}
+
+// Vitória = o lado que matou mais naquela batalha.
+function scoreBattles(list, isA, isB) {
+  const a = { w: 0, k: 0, d: 0, f: 0 }, b = { w: 0, k: 0, d: 0, f: 0 };
+  const rows = [];
+  list.forEach(function (bt) {
+    const sa = { k: 0, d: 0, f: 0, p: 0 }, sb = { k: 0, d: 0, f: 0, p: 0 };
+    bt.players.forEach(function (p) {
+      const t = isA(p) ? sa : isB(p) ? sb : null;
+      if (!t) return;
+      t.k += p.kills; t.d += p.deaths; t.f += p.killFame; t.p++;
+    });
+    if (!sa.p || !sb.p) return;
+    if (sa.k > sb.k) a.w++; else if (sb.k > sa.k) b.w++;
+    a.k += sa.k; a.d += sa.d; a.f += sa.f; b.k += sb.k; b.d += sb.d; b.f += sb.f;
+    rows.push({ id: bt.id, t: bt.t, sa: sa, sb: sb });
+  });
+  return { a: a, b: b, rows: rows };
+}
+
+function battleList(rows, A, B) {
+  if (!rows.length) return "";
+  return '<div class="table-wrap" style="margin-top:16px"><table class="table"><thead><tr><th>Quando</th><th class="num">' + Emp.esc(A) + '</th><th class="num">' + Emp.esc(B) + "</th><th></th></tr></thead><tbody>" +
+    rows.map(function (r) {
+      return '<tr class="link" data-id="' + r.id + '"><td class="muted small">' + Emp.dateTime(r.t) + " (" + Emp.ago(r.t) + ')</td><td class="num">' + r.sa.p + " jog. · " + r.sa.k + ' abates</td><td class="num">' + r.sb.p + " jog. · " + r.sb.k + ' abates</td><td class="num gold small">Ver</td></tr>';
+    }).join("") + "</tbody></table></div>";
+}
+
+document.addEventListener("click", function (e) {
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) location.href = "/batalhas/" + tr.dataset.id + "?s=" + region;
+});
+
+// ---------- Comparador ----------
+function setupPick(key) {
+  const inp = document.getElementById("q" + key), box = document.getElementById("o" + key);
+  let timer = null;
+  inp.addEventListener("input", function () {
+    picked[key] = null;
+    clearTimeout(timer);
+    const q = inp.value.trim();
+    if (q.length < 2) { box.classList.remove("open"); return; }
+    timer = setTimeout(async function () {
+      try {
+        const r = await Emp.albion("search", { s: region, q: q });
+        const gs = (r.guilds || []).slice(0, 12);
+        box.innerHTML = gs.length ? gs.map(function (g) {
+          return '<div data-id="' + Emp.esc(g.Id) + '" data-n="' + Emp.esc(g.Name) + '">' + Emp.esc(g.Name) + (g.AllianceName ? ' <span class="muted">[' + Emp.esc(g.AllianceName) + "]</span>" : "") + "</div>";
+        }).join("") : '<div class="muted">Nenhuma guilda com esse nome</div>';
+        box.classList.add("open");
+      } catch (err) { box.innerHTML = '<div class="muted">' + Emp.esc(err.message) + "</div>"; box.classList.add("open"); }
+    }, 350);
+  });
+  box.addEventListener("click", function (e) {
+    const o = e.target.closest("[data-id]");
+    if (!o) return;
+    picked[key] = { id: o.dataset.id, n: o.dataset.n };
+    inp.value = o.dataset.n;
+    box.classList.remove("open");
+    compare();
+  });
+}
+setupPick("a"); setupPick("b");
+
+async function compare() {
+  const out = document.getElementById("h2h");
+  if (!picked.a || !picked.b) return;
+  if (picked.a.id === picked.b.id) { out.innerHTML = '<p class="muted">Escolha duas guildas diferentes.</p>'; return; }
+  out.innerHTML = Emp.loading("Procurando batalhas entre as duas...");
+  try {
+    const list = [];
+    for (let i = 0; i < 4; i++) {
+      const page = await Emp.albion("battles", { s: region, guildId: picked.a.id, offset: i * 50, limit: 50 });
+      page.forEach(function (b) { list.push({ id: b.id, t: b.startTime, players: Object.values(b.players || {}) }); });
+      if (page.length < 50) break;
+    }
+    const res = scoreBattles(list, function (p) { return p.guildId === picked.a.id; }, function (p) { return p.guildId === picked.b.id; });
+    if (!res.rows.length) {
+      out.innerHTML = '<p class="muted">Nas últimas ' + list.length + " batalhas de " + Emp.esc(picked.a.n) + ", nenhuma teve " + Emp.esc(picked.b.n) + " do outro lado.</p>";
+      return;
+    }
+    out.innerHTML = '<p class="muted small">' + res.rows.length + " batalhas em comum entre as últimas " + list.length + " de " + Emp.esc(picked.a.n) + ".</p>" +
+      vsBlock(picked.a.n, picked.b.n, res.a, res.b, battleList(res.rows, picked.a.n, picked.b.n));
+  } catch (e) {
+    out.innerHTML = '<p class="muted">' + Emp.esc(e.message) + "</p>";
+  }
+}
+
+// ---------- Rivalidades ----------
+let rivals = [];
+async function loadRivals() {
+  const el = document.getElementById("rivals");
+  el.innerHTML = Emp.loading("Analisando as batalhas recentes...");
+  try {
+    const data = await Emp.albion("recent", { s: region });
+    const pairs = {};
+    data.forEach(function (b) {
+      if (b.p < 10) return;
+      const sides = {};
+      b.g.forEach(function (g) {
+        const key = g.ai || "g:" + g.id;
+        if (!sides[key]) sides[key] = { key: key, n: g.a || g.n, p: 0, k: 0, d: 0, f: 0 };
+        const s = sides[key];
+        s.p += g.p; s.k += g.k; s.d += g.d; s.f += g.f;
+      });
+      const top = Object.values(sides).sort(function (x, y) { return y.p - x.p; }).slice(0, 2);
+      if (top.length < 2 || top[1].p < 3) return;
+      top.sort(function (x, y) { return x.key < y.key ? -1 : 1; });
+      const pk = top[0].key + "|" + top[1].key;
+      if (!pairs[pk]) pairs[pk] = { A: top[0].n, B: top[1].n, a: { w: 0, k: 0, d: 0, f: 0 }, b: { w: 0, k: 0, d: 0, f: 0 }, n: 0, max: 0, rows: [] };
+      const P = pairs[pk];
+      P.n++; P.max = Math.max(P.max, b.p);
+      if (top[0].k > top[1].k) P.a.w++; else if (top[1].k > top[0].k) P.b.w++;
+      ["k", "d", "f"].forEach(function (f) { P.a[f] += top[0][f]; P.b[f] += top[1][f]; });
+      P.rows.push({ id: b.id, t: b.t, sa: top[0], sb: top[1] });
+    });
+    rivals = Object.values(pairs).filter(function (p) { return p.n >= 2; }).sort(function (x, y) { return y.n - x.n || (y.a.k + y.b.k) - (x.a.k + x.b.k); }).slice(0, 12);
+    if (!rivals.length) { el.innerHTML = Emp.emptyState("Nenhuma rivalidade repetida nas batalhas recentes desse servidor."); return; }
+    el.innerHTML = '<div class="grid2">' + rivals.map(function (r, i) {
+      return '<div class="card rival" data-i="' + i + '"><div class="row between small muted" style="margin-bottom:10px"><span>#' + (i + 1) + " · " + r.n + " batalhas</span><span>maior luta: " + r.max + " jogadores</span></div>" +
+        vsBlock(r.A, r.B, r.a, r.b) + '<div class="rv-list"></div></div>';
+    }).join("") + "</div>";
+  } catch (e) {
+    el.innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
+  }
+}
+document.getElementById("rivals").addEventListener("click", function (e) {
+  if (e.target.closest("tr")) return;
+  const c = e.target.closest(".rival");
+  if (!c) return;
+  const box = c.querySelector(".rv-list");
+  const r = rivals[parseInt(c.dataset.i, 10)];
+  box.innerHTML = box.innerHTML ? "" : battleList(r.rows, r.A, r.B);
+});
+
+Emp.regionTabs(document.getElementById("region"), function (r) {
+  region = r;
+  picked.a = picked.b = null;
+  document.getElementById("qa").value = document.getElementById("qb").value = "";
+  document.getElementById("h2h").innerHTML = "";
+  loadRivals();
+});
+loadRivals();
+</script>
 </body>
 </html>

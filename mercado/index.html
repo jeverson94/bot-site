@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mercado — Empório dos Bots</title>
-<meta name="description" content="Preços dos itens nas cidades, pra montar e regear sem pagar caro.">
+<title>Mercado | Empório dos Bots</title>
+<meta name="description" content="Preços de itens de Albion Online nas cidades reais, Caerleon, Brecilien e Mercado Negro, por tier, encantamento e qualidade.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .price { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .price small { display: block; color: var(--text-dim); font-size: 11px; }
+  .price.best { color: #6fcf8e; font-weight: 700; }
+  .price.none { color: rgba(139,147,163,.45); }
+  .table td.price { text-align: right; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +21,149 @@
   <section class="page-hero">
     <div class="eyebrow">Ferramentas</div>
     <h1>Mercado</h1>
-    <p class="subtitle">Preços dos itens nas cidades, pra montar e regear sem pagar caro.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Menor preço de venda em cada cidade e quanto o Mercado Negro está pagando. Os preços vêm do Albion Data Project, enviados por jogadores que usam o cliente de dados, então alguns itens podem estar sem informação ou desatualizados.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Preço por cidade</h3><p>Compare o mesmo item em todas as cidades.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Custo da build</h3><p>Quanto sai montar uma build inteira.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Histórico</h3><p>Se o preço subiu ou caiu.</p></div></section>
+
+  <div class="toolbar">
+    <div id="region"></div>
+  </div>
+  <div class="toolbar">
+    <div class="tabs" id="cats"></div>
+  </div>
+  <div class="toolbar">
+    <select class="select" id="tier"><option value="4">Tier 4</option><option value="5">Tier 5</option><option value="6">Tier 6</option><option value="7">Tier 7</option><option value="8" selected>Tier 8</option></select>
+    <select class="select" id="ench"><option value="0">Sem encanto</option><option value="1">Encanto 1</option><option value="2">Encanto 2</option><option value="3">Encanto 3</option><option value="4">Encanto 4</option></select>
+    <select class="select" id="qual"><option value="1">Normal</option><option value="2">Bom</option><option value="3">Excepcional</option><option value="4">Excelente</option><option value="5">Obra-prima</option></select>
+    <select class="select" id="sort"><option value="n">Ordem alfabética</option><option value="p">Menor preço primeiro</option><option value="s">Maior diferença entre cidades</option></select>
+    <label class="row small muted"><input type="checkbox" id="only"> Só com preço</label>
+    <input class="input grow" id="q" type="search" placeholder="Buscar item" style="max-width:240px">
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead id="head"></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div id="state"></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/mercado/");</script>
+<script>
+EmporioShell.renderTopbar("/mercado/");
+
+const HOSTS = { am: "https://west.albion-online-data.com", eu: "https://europe.albion-online-data.com", as: "https://east.albion-online-data.com" };
+const CITIES = [
+  { k: "Thetford", s: "TH" }, { k: "Fort Sterling", s: "FS" }, { k: "Lymhurst", s: "LY" }, { k: "Bridgewatch", s: "BW" },
+  { k: "Martlock", s: "MA" }, { k: "Caerleon", s: "CA" }, { k: "Brecilien", s: "BR" }, { k: "Black Market", s: "MN" },
+];
+const CATS = [
+  { k: "mainhand", n: "Armas" }, { k: "offhand", n: "Secundárias" }, { k: "head", n: "Elmos" }, { k: "chest", n: "Armaduras" },
+  { k: "shoes", n: "Botas" }, { k: "cape", n: "Capas" }, { k: "bag", n: "Bolsas" }, { k: "mount", n: "Montarias" },
+  { k: "food", n: "Comidas" }, { k: "potion", n: "Poções" },
+];
+let region = Emp.getRegion();
+let cat = "mainhand";
+let DB = null;
+let rows = [];
+let reqId = 0;
+
+document.getElementById("head").innerHTML = "<tr><th>Item</th>" + CITIES.map(function (c) {
+  return '<th class="num" title="' + (c.k === "Black Market" ? "Mercado Negro (ordem de compra)" : c.k) + '">' + c.s + "</th>";
+}).join("") + '<th class="num">Menor</th></tr>';
+
+function parseDate(s) {
+  if (!s || s.indexOf("0001") === 0) return 0;
+  return Date.parse(s.endsWith("Z") ? s : s + "Z");
+}
+
+function idsFor() {
+  const tier = document.getElementById("tier").value, ench = parseInt(document.getElementById("ench").value, 10);
+  return Object.keys(DB.items).filter(function (id) {
+    const it = DB.items[id];
+    return it.s === cat && id.indexOf("T" + tier + "_") === 0 && id.indexOf("_TOOL_") < 0;
+  }).map(function (id) { return { base: id, id: ench ? id + "@" + ench : id, n: DB.items[id].n }; });
+}
+
+async function load() {
+  const my = ++reqId;
+  document.getElementById("rows").innerHTML = "";
+  document.getElementById("state").innerHTML = Emp.loading("Buscando preços...");
+  if (!DB) DB = await Emp.items();
+  const list = idsFor();
+  rows = list.map(function (x) { return { id: x.id, n: x.n, p: {} }; });
+  const byId = {};
+  rows.forEach(function (r) { byId[r.id] = r; });
+  const qual = document.getElementById("qual").value;
+  try {
+    for (let i = 0; i < list.length; i += 45) {
+      const chunk = list.slice(i, i + 45).map(function (x) { return x.id; });
+      const url = HOSTS[region] + "/api/v2/stats/prices/" + chunk.join(",") + ".json?locations=" +
+        encodeURIComponent(CITIES.map(function (c) { return c.k; }).join(",")) + "&qualities=" + qual;
+      const data = await fetch(url).then(function (r) { if (!r.ok) throw new Error("O Albion Data Project não respondeu"); return r.json(); });
+      if (my !== reqId) return;
+      data.forEach(function (d) {
+        const r = byId[d.item_id];
+        if (!r) return;
+        if (d.city === "Black Market") {
+          if (d.buy_price_max) r.p[d.city] = { v: d.buy_price_max, t: parseDate(d.buy_price_max_date) };
+        } else if (d.sell_price_min) {
+          r.p[d.city] = { v: d.sell_price_min, t: parseDate(d.sell_price_min_date) };
+        }
+      });
+      render();
+    }
+    document.getElementById("state").innerHTML = "";
+    render();
+  } catch (e) {
+    if (my === reqId) document.getElementById("state").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
+  }
+}
+
+function render() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const only = document.getElementById("only").checked;
+  const sort = document.getElementById("sort").value;
+  let list = rows.map(function (r) {
+    const vals = CITIES.filter(function (c) { return c.k !== "Black Market" && r.p[c.k]; }).map(function (c) { return r.p[c.k].v; });
+    r.min = vals.length ? Math.min.apply(null, vals) : 0;
+    r.spread = vals.length > 1 ? Math.max.apply(null, vals) - r.min : 0;
+    return r;
+  }).filter(function (r) { return (!q || r.n.toLowerCase().includes(q)) && (!only || Object.keys(r.p).length); });
+  list.sort(function (a, b) {
+    if (sort === "p") return (a.min || 1e15) - (b.min || 1e15);
+    if (sort === "s") return b.spread - a.spread;
+    return a.n.localeCompare(b.n, "pt-BR");
+  });
+  document.getElementById("rows").innerHTML = list.map(function (r) {
+    return '<tr><td><div class="row"><img class="ico sm" src="' + Emp.icon(r.id, document.getElementById("qual").value) + '" alt="" loading="lazy"><b>' + Emp.esc(r.n) + "</b></div></td>" +
+      CITIES.map(function (c) {
+        const p = r.p[c.k];
+        if (!p) return '<td class="price none">sem dado</td>';
+        const best = c.k !== "Black Market" && p.v === r.min;
+        return '<td class="price' + (best ? " best" : "") + '" title="' + Emp.esc(c.k) + ", atualizado " + Emp.ago(p.t) + '">' + Emp.num(p.v) + "<small>" + Emp.ago(p.t) + "</small></td>";
+      }).join("") + '<td class="price"><b>' + (r.min ? Emp.num(r.min) : "sem dado") + "</b></td></tr>";
+  }).join("");
+  if (!list.length && !document.querySelector("#state .spin")) document.getElementById("state").innerHTML = Emp.emptyState("Nenhum item com esses filtros.");
+}
+
+document.getElementById("cats").innerHTML = CATS.map(function (c) {
+  return '<button class="tab' + (c.k === cat ? " on" : "") + '" data-k="' + c.k + '">' + c.n + "</button>";
+}).join("");
+document.getElementById("cats").addEventListener("click", function (e) {
+  const b = e.target.closest("[data-k]");
+  if (!b) return;
+  cat = b.dataset.k;
+  document.querySelectorAll("#cats .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+  load();
+});
+["tier", "ench", "qual"].forEach(function (id) { document.getElementById(id).addEventListener("change", load); });
+["sort", "only"].forEach(function (id) { document.getElementById(id).addEventListener("change", render); });
+document.getElementById("q").addEventListener("input", render);
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; load(); });
+load();
+</script>
 </body>
 </html>

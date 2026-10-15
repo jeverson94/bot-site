@@ -3,60 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar — Empório dos Bots</title>
+<title>Entrar | Empório dos Bots</title>
 <link rel="stylesheet" href="/assets/css/theme.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; padding-top: 40px; max-width: 980px; }
+  @media (max-width: 800px) { .login-grid { grid-template-columns: 1fr; gap: 28px; padding-top: 10px; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
-
-<div class="page-wrap" style="padding-top:70px; max-width:980px;">
-  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:60px; align-items:center;">
+<main class="page-wrap">
+  <div class="login-grid">
     <div>
-      <div class="pill" style="margin-bottom:18px;">SEM ASSINATURA</div>
-      <h1 style="font-size:38px; line-height:1.2; margin:0 0 16px;">Sua próxima call<br>começa aqui.</h1>
-      <p class="subtitle" style="font-size:15px; max-width:380px;">Builds, composições e eventos. Seu arsenal organizado, sempre gratuito.</p>
-      <div style="margin-top:20px;"><a href="/builds/" style="font-size:13.5px;">Explorar a biblioteca →</a></div>
+      <span class="pill">LOGIN PELO DISCORD</span>
+      <h1 style="font-size:38px; line-height:1.2; margin:16px 0 14px;">Entre com a sua conta do Discord.</h1>
+      <p class="subtitle" style="font-size:15px; max-width:400px;">Com login você avalia builds e vê as guildas ligadas à sua conta. As outras ferramentas funcionam sem conta.</p>
+      <a href="/builds/" class="small">Ver as builds sem entrar</a>
     </div>
-
-    <div class="card" style="padding:32px;">
-      <div class="pill" style="margin-bottom:16px;">SEM ASSINATURA</div>
-      <h2 style="margin:0 0 6px; font-size:22px; color:var(--text);">Bom ter você por aqui.</h2>
-      <p class="subtitle" style="margin-bottom:24px;">Entre com sua conta do Discord pra acessar seu painel pessoal.</p>
+    <div class="card" style="padding:30px;">
+      <h2 style="margin:0 0 6px; font-size:22px;">Entrar</h2>
+      <p class="subtitle" style="margin:0 0 22px;">Você vai para o Discord, aprova o acesso e volta para cá.</p>
       <div id="login-status"></div>
-      <a class="btn" id="btn-discord-login" href="#" style="width:100%; padding:13px; font-size:14.5px;">
-        Entrar com Discord
-      </a>
-      <p class="subtitle" style="margin-top:18px; font-size:12.5px;">
-        É só aprovar o login no Discord — não pedimos usuário nem senha aqui.
-      </p>
+      <a class="btn" id="btn-discord-login" href="#" style="width:100%; padding:13px; font-size:14.5px;">Entrar com Discord</a>
+      <p class="subtitle small" style="margin:16px 0 0;">O Empório não pede usuário nem senha. Recebemos só seu nome, avatar e identificador do Discord.</p>
     </div>
   </div>
-</div>
-
-<div class="footer">Empório dos Bots</div>
-
+</main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
 <script>
-  window.EmporioShell.renderTopbar("/login/");
-  document.getElementById("btn-discord-login").href = window.EmporioAuth.loginUrl();
+EmporioShell.renderTopbar("/login/");
+document.getElementById("btn-discord-login").href = window.EmporioAuth.loginUrl();
 
-  const params = new URLSearchParams(window.location.search);
-  const erro = params.get("erro");
-  if (erro) {
-    const msgs = {
-      oauth_state: "A sessão de login expirou, tenta de novo.",
-      oauth_falhou: "Não deu pra confirmar o login com o Discord, tenta de novo.",
-    };
-    const el = document.getElementById("login-status");
-    el.innerHTML = '<div class="pill" style="background:rgba(230,106,106,.14); color:#e66a6a; margin-bottom:16px;">' +
-      (msgs[erro] || "Algo deu errado no login, tenta de novo.") + "</div>";
-  }
+const erro = new URLSearchParams(window.location.search).get("erro");
+if (erro) {
+  const msgs = {
+    oauth_state: "O login demorou demais e expirou. Tente de novo.",
+    oauth_falhou: "O Discord não confirmou o login. Tente de novo.",
+  };
+  document.getElementById("login-status").innerHTML = '<div class="badge bad" style="display:block; padding:10px 12px; margin-bottom:16px; white-space:normal;">' +
+    (msgs[erro] || "Algo deu errado no login. Tente de novo.") + "</div>";
+}
 
-  window.EmporioAuth.me().then(function (user) {
-    if (user) window.location.href = "/";
-  });
+window.EmporioAuth.me().then(function (user) {
+  if (user) window.location.href = "/painel/guildas/";
+});
 </script>
 </body>
 </html>

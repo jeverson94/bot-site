@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batalha | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .kill { display: grid; grid-template-columns: 70px 1fr 24px 1fr 80px; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; }
+  .kill:last-child { border-bottom: none; }
+  .kill .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .kill .who div { min-width: 0; }
+  .kill .who b { display: block; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kill .who span { display: block; color: var(--text-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kill .arrow { color: var(--gold); text-align: center; }
+  .side-bar { height: 6px; border-radius: 4px; background: var(--gold); opacity: .8; }
+  @media (max-width: 700px) { .kill { grid-template-columns: 1fr 18px 1fr; } .kill .t, .kill .f { display: none; } }
+</style>
+</head>
+<body>
+<div id="topbar-root"></div>
+<main class="page-wrap">
+  <div class="crumb"><a href="/batalhas/">Batalhas</a> / <span id="crumb">Batalha</span></div>
+  <div id="root">
+    <div class="state"><span class="spin"></span>Carregando batalha. Batalhas grandes podem levar alguns segundos.</div>
+  </div>
+</main>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
+<script src="/assets/js/shell.js"></script>
+<script>
+EmporioShell.renderTopbar("/batalhas/");
+
+const id = (location.pathname.match(/\/batalhas\/(\d+)/) || [])[1] || new URLSearchParams(location.search).get("id");
+const region = new URLSearchParams(location.search).get("s") || Emp.getRegion();
+const regionLabel = (Emp.REGIONS.find(function (r) { return r.id === region; }) || {}).label || "";
+
+function sideTable(rows, label) {
+  const maxP = Math.max.apply(null, rows.map(function (r) { return r.p; }).concat([1]));
+  return '<div class="table-wrap"><table class="table"><thead><tr><th>' + label + '</th><th class="num">Jogadores</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      return "<tr><td><b>" + Emp.esc(r.n) + "</b>" + (r.sub ? '<div class="muted small">' + Emp.esc(r.sub) + "</div>" : "") +
+        '<div class="side-bar" style="width:' + Math.round(100 * r.p / maxP) + '%;margin-top:6px"></div></td>' +
+        '<td class="num">' + r.p + '</td><td class="num">' + Emp.int(r.k) + '</td><td class="num">' + Emp.int(r.d) + '</td><td class="num">' + Emp.num(r.f) + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+}
+
+function who(p, DB) {
+  const w = p.eq.MainHand;
+  return '<div class="who">' + (w ? '<img class="ico" src="' + Emp.icon(w) + '" alt="" title="' + Emp.esc(Emp.itemName(DB, w)) + '" loading="lazy">' : '<span class="ico"></span>') +
+    "<div><b>" + Emp.esc(p.n) + "</b><span>" + Emp.esc(p.g || "Sem guilda") + (p.a ? " [" + Emp.esc(p.a) + "]" : "") + " · IP " + p.ip + "</span></div></div>";
+}
+
+Promise.all([Emp.albion("battle", { s: region, id: id }), Emp.items()]).then(function (res) {
+  const b = res[0].battle, events = res[0].events, DB = res[1];
+  const players = Object.values(b.players || {});
+  const secs = (Date.parse(b.endTime) - Date.parse(b.startTime)) / 1000;
+  document.title = "Batalha " + b.id + " | Empório dos Bots";
+  document.getElementById("crumb").textContent = "Batalha " + b.id;
+
+  const ally = {};
+  const guild = {};
+  players.forEach(function (p) {
+    const ak = p.allianceName || p.guildName || "Sem guilda";
+    if (!ally[ak]) ally[ak] = { n: ak, p: 0, k: 0, d: 0, f: 0, g: {} };
+    ally[ak].p++; ally[ak].k += p.kills; ally[ak].d += p.deaths; ally[ak].f += p.killFame;
+    if (p.guildName) ally[ak].g[p.guildName] = 1;
+    const gk = p.guildName || "Sem guilda";
+    if (!guild[gk]) guild[gk] = { n: gk, sub: p.allianceName ? "Aliança " + p.allianceName : "", p: 0, k: 0, d: 0, f: 0 };
+    guild[gk].p++; guild[gk].k += p.kills; guild[gk].d += p.deaths; guild[gk].f += p.killFame;
+  });
+  const allyRows = Object.values(ally).map(function (a) { a.sub = Object.keys(a.g).join(", "); return a; }).sort(function (x, y) { return y.p - x.p; });
+  const guildRows = Object.values(guild).sort(function (x, y) { return y.p - x.p; });
+  const topPlayers = players.slice().sort(function (x, y) { return y.kills - x.kills || y.killFame - x.killFame; }).slice(0, 15);
+
+  document.getElementById("root").innerHTML =
+    '<section class="page-hero" style="padding-top:6px"><div class="eyebrow">' + Emp.esc(regionLabel) + " · " + Emp.dateTime(b.startTime) + "</div>" +
+    "<h1>" + Emp.esc(allyRows.slice(0, 2).map(function (a) { return a.n; }).join(" x ") || "Batalha " + b.id) + "</h1>" +
+    '<p class="subtitle">Começou ' + Emp.ago(b.startTime) + " e durou " + Emp.duration(secs) + ".</p></section>" +
+    '<div class="stats"><div class="stat"><b>' + players.length + '</b><span>Jogadores</span></div><div class="stat"><b>' + Emp.int(b.totalKills) +
+    '</b><span>Abates</span></div><div class="stat"><b>' + Emp.num(b.totalFame) + '</b><span>Fama total</span></div><div class="stat"><b>' + allyRows.length +
+    '</b><span>Lados</span></div><div class="stat"><b>' + guildRows.length + "</b><span>Guildas</span></div></div>" +
+    '<div class="section"><h2>Por aliança</h2>' + sideTable(allyRows, "Aliança ou guilda") + "</div>" +
+    '<div class="section"><h2>Por guilda</h2>' + sideTable(guildRows, "Guilda") + "</div>" +
+    '<div class="section"><h2>Destaques</h2><div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th>Guilda</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th></tr></thead><tbody>' +
+    topPlayers.map(function (p) {
+      return "<tr><td><b>" + Emp.esc(p.name) + '</b></td><td class="muted">' + Emp.esc(p.guildName || "Sem guilda") + '</td><td class="num">' + p.kills + '</td><td class="num">' + p.deaths + '</td><td class="num">' + Emp.num(p.killFame) + "</td></tr>";
+    }).join("") + "</tbody></table></div></div>" +
+    '<div class="section"><h2>Mortes</h2><p class="subtitle">' + events.length + " registradas, na ordem em que aconteceram. O ícone é a arma de cada um.</p>" +
+    '<div class="card" style="padding:0">' + (events.length ? events.map(function (e) {
+      return '<div class="kill"><span class="t muted small">' + new Date(e.t).toLocaleTimeString("pt-BR") + "</span>" + who(e.k, DB) +
+        '<span class="arrow">→</span>' + who(e.v, DB) + '<span class="f num muted small" style="text-align:right">' + Emp.num(e.f) + "</span></div>";
+    }).join("") : Emp.emptyState("A API ainda não publicou as mortes dessa batalha.")) + "</div></div>";
+}).catch(function (e) {
+  document.getElementById("root").innerHTML = Emp.emptyState(Emp.esc(e.message) + '. <a href="/batalhas/">Voltar para as batalhas</a>');
+});
+</script>
+</body>
+</html>

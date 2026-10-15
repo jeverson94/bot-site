@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contato — Empório dos Bots</title>
-<meta name="description" content="Achou um bug, tem uma ideia ou quer o bot na sua guilda? Fala com a gente.">
+<title>Contato | Empório dos Bots</title>
+<meta name="description" content="Como falar com quem mantém o Empório dos Bots: dúvidas de conta, bugs e pedidos.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
 </head>
@@ -14,14 +14,31 @@
   <section class="page-hero">
     <div class="eyebrow">Informação</div>
     <h1>Contato</h1>
-    <p class="subtitle">Achou um bug, tem uma ideia ou quer o bot na sua guilda? Fala com a gente.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">O atendimento é feito pelo Discord.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Discord</h3><p>O jeito mais rápido de falar com a equipe.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Sugestões</h3><p>Conta o que faria diferença pra sua guilda.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Parcerias</h3><p>Guildas e criadores de conteúdo.</p></div></section>
+  <div class="grid2">
+    <div class="card" id="discord-card"></div>
+    <div class="card">
+      <h2>Para agilizar</h2>
+      <div class="legal-text" style="font-size:14px">
+        <p><b>Bug no site:</b> diga qual página, o que você fez e o que apareceu. Um print ajuda muito.</p>
+        <p><b>Problema de login:</b> diga o seu nome no Discord e o horário em que tentou entrar.</p>
+        <p><b>Clipe para publicar:</b> mande o link do YouTube ou da Twitch, o título e o nome da guilda.</p>
+        <p><b>Ideia ou pedido:</b> conte o que você quer fazer no jogo e onde o site poderia ajudar.</p>
+      </div>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/contato/");</script>
+<script>
+EmporioShell.renderTopbar("/contato/");
+const inv = window.EMPORIO_CONFIG.DISCORD_INVITE;
+document.getElementById("discord-card").innerHTML = inv
+  ? '<h2>Servidor do Discord</h2><p class="muted">Entre no servidor e abra um ticket ou escreva no canal de suporte.</p><a class="btn" href="' + Emp.esc(inv) + '" target="_blank" rel="noopener">Entrar no Discord</a>'
+  : '<h2>Discord</h2><p class="muted">Fale com a administração do Empório pelo servidor da sua guilda. Se a sua guilda usa o bot, os oficiais sabem como chegar até a gente.</p>';
+</script>
 </body>
 </html>

@@ -1,7 +1,7 @@
-// Empório dos Bots — sessão (Discord OAuth), igual ao painel já existente.
+// Empório dos Bots: sessão (Discord OAuth).
 // O backend (eventsite.py) redireciona pra /auth/discord/login, o Discord
 // manda de volta pra /auth/discord/callback LÁ no backend, que por sua vez
-// redireciona o navegador pra ESSE site em /auth/callback?token=... - essa
+// redireciona o navegador pra ESSE site em /auth/callback?token=.... Essa
 // página salva o token (localStorage) e manda o usuário pra home.
 (function () {
   const CFG = window.EMPORIO_CONFIG;

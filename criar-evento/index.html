@@ -3,10 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Criar evento — Empório dos Bots</title>
-<meta name="description" content="Monte a call em minutos: escolha conteúdo, composição, horário e o bot pinga a guilda no Discord.">
+<title>Criar evento | Empório dos Bots</title>
+<meta name="description" content="Monte o anúncio de uma call de Albion Online com horário que cada membro vê no próprio fuso, pronto para colar no Discord.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .preview { background: #2b2d31; color: #dbdee1; border-radius: 10px; padding: 14px 16px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; font-family: "gg sans", system-ui, sans-serif; }
+  .preview .ts { background: rgba(255,255,255,.08); border-radius: 4px; padding: 0 3px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +18,136 @@
   <section class="page-hero">
     <div class="eyebrow">Eventos</div>
     <h1>Criar evento</h1>
-    <p class="subtitle">Monte a call em minutos: escolha conteúdo, composição, horário e o bot pinga a guilda no Discord.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Preencha a call e copie o anúncio para o Discord. O horário vai no formato que o Discord converte sozinho, então cada membro vê no próprio fuso. O link do evento mostra uma página com contagem regressiva.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Escolha a composição</h3><p>Use uma comp salva ou monte na hora, com as vagas de cada função.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Ping automático</h3><p>O bot avisa no canal certo e manda a build de cada um por DM.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Inscrições</h3><p>Os membros reagem pra pegar vaga; você trava e reorganiza quando quiser.</p></div></section>
+
+  <div class="grid2">
+    <div class="card">
+      <label class="field">Título<input class="input" id="titulo" placeholder="Ex.: ZvZ de castelo" maxlength="80"></label>
+      <div class="grid2" style="margin-top:12px">
+        <label class="field">Conteúdo<input class="input" id="conteudo" list="conteudos" placeholder="ZvZ, Castelo, Hellgate..."></label>
+        <label class="field">Vagas<input class="input" id="vagas" type="number" min="1" max="300" placeholder="Ex.: 20"></label>
+      </div>
+      <datalist id="conteudos"><option value="ZvZ"><option value="Castelo"><option value="Posto avançado"><option value="Cristais de território"><option value="Núcleo de poder"><option value="Hellgate"><option value="Avalon"><option value="Dungeon de grupo"><option value="Coleta em grupo"><option value="Tracking"></datalist>
+      <div class="grid2" style="margin-top:12px">
+        <label class="field">Data<input class="input" id="data" type="date"></label>
+        <label class="field">Hora (seu fuso)<input class="input" id="hora" type="time" value="21:00"></label>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <label class="field">Ponto de encontro<input class="input" id="local" placeholder="Ex.: Lymhurst, banco"></label>
+        <label class="field">IP mínimo<input class="input" id="ip" type="number" min="0" max="2000" placeholder="Ex.: 1300"></label>
+      </div>
+      <label class="field" style="margin-top:12px">Composição<select class="select" id="comp"><option value="">Nenhuma</option></select></label>
+      <label class="field" style="margin-top:12px">Observações<textarea class="input" id="obs" rows="3" placeholder="Regear, swaps, quem chama..."></textarea></label>
+      <div class="row wrap" style="margin-top:14px">
+        <button class="btn" id="copy">Copiar anúncio</button>
+        <button class="btn secondary" id="link">Copiar link do evento</button>
+        <button class="btn secondary" id="save">Salvar</button>
+      </div>
+      <p class="muted small" id="msg" style="min-height:18px;margin:8px 0 0"></p>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Prévia no Discord</h2>
+        <div class="preview" id="preview"></div>
+        <p class="muted small" style="margin:10px 0 0" id="local-time"></p>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <h2>Eventos salvos</h2>
+        <div id="saved"></div>
+      </div>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/criar-evento/");</script>
+<script src="/assets/js/eventos.js"></script>
+<script>
+EmporioShell.renderTopbar("/criar-evento/");
+
+const $ = function (id) { return document.getElementById(id); };
+const FIELDS = ["titulo", "conteudo", "vagas", "data", "hora", "local", "ip", "comp", "obs"];
+let evId = Date.now().toString(36);
+let keptComp = "";
+let comps = [];
+try { comps = JSON.parse(localStorage.getItem("emp_comps") || "[]"); } catch (e) {}
+
+const today = new Date();
+$("data").value = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+$("comp").innerHTML += comps.map(function (c, i) { return '<option value="' + i + '">' + Emp.esc(c.n) + "</option>"; }).join("");
+
+function current() {
+  const at = new Date($("data").value + "T" + ($("hora").value || "00:00")).getTime();
+  const ci = $("comp").value;
+  const c = ci !== "" ? comps[parseInt(ci, 10)] : null;
+  let compTxt = keptComp;
+  if (c) {
+    const n = c.p.reduce(function (s, p) { return s + p.s.length; }, 0);
+    const slim = { n: c.n, c: c.c, p: c.p };
+    compTxt = c.n + " (" + n + " vagas) " + location.origin + "/composicoes/ver/#" + btoa(unescape(encodeURIComponent(JSON.stringify(slim)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  return {
+    id: evId, titulo: $("titulo").value.trim() || "Evento sem título", conteudo: $("conteudo").value.trim(),
+    vagas: $("vagas").value, at: at, local: $("local").value.trim(), ip: $("ip").value, comp: compTxt, obs: $("obs").value.trim(),
+  };
+}
+
+function preview() {
+  const ev = current();
+  const d = new Date(ev.at);
+  const fmtFull = d.toLocaleString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const txt = EmpEventos.discordText(ev)
+    .replace(/<t:\d+:F>/, "[[F]]").replace(/<t:\d+:R>/, "[[R]]");
+  $("preview").innerHTML = Emp.esc(txt).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace("[[F]]", '<span class="ts">' + fmtFull + "</span>")
+    .replace("[[R]]", '<span class="ts">' + (isNaN(ev.at) ? "" : relTxt(ev.at)) + "</span>");
+  $("local-time").textContent = isNaN(ev.at) ? "Escolha data e hora." : "Em UTC: " + d.toISOString().slice(0, 16).replace("T", " ") + ". Quem estiver em outro fuso verá o horário convertido.";
+}
+function relTxt(at) {
+  const m = Math.round((at - Date.now()) / 60000);
+  if (m < 0) return "já passou";
+  if (m < 60) return "em " + m + " minutos";
+  if (m < 1440) return "em " + Math.round(m / 60) + " horas";
+  return "em " + Math.round(m / 1440) + " dias";
+}
+
+function copy(text, ok) {
+  navigator.clipboard.writeText(text).then(function () { $("msg").textContent = ok; }, function () { prompt("Copie:", text); });
+}
+
+function drawSaved() {
+  const all = EmpEventos.list();
+  $("saved").innerHTML = all.length ? '<div class="table-wrap"><table class="table"><tbody>' + all.map(function (ev) {
+    return '<tr><td><a href="/eventos/#' + EmpEventos.encode(ev) + '"><b>' + Emp.esc(ev.titulo) + '</b></a><div class="muted small">' + new Date(ev.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) +
+      (ev.conteudo ? " · " + Emp.esc(ev.conteudo) : "") + '</div></td><td class="num"><button class="btn secondary" data-edit="' + ev.id + '" style="padding:5px 10px;font-size:12px">Editar</button> <button class="btn secondary" data-del="' + ev.id + '" style="padding:5px 10px;font-size:12px">Apagar</button></td></tr>';
+  }).join("") + "</tbody></table></div>" : '<p class="muted small">Os eventos que você salvar aparecem aqui e na página Eventos.</p>';
+}
+
+FIELDS.forEach(function (f) { $(f).addEventListener("input", preview); $(f).addEventListener("change", preview); });
+$("comp").addEventListener("change", function () { keptComp = ""; preview(); });
+$("copy").onclick = function () { const ev = current(); EmpEventos.put(ev); drawSaved(); copy(EmpEventos.discordText(ev), "Anúncio copiado. Cole no canal do Discord."); };
+$("link").onclick = function () { const ev = current(); EmpEventos.put(ev); drawSaved(); copy(EmpEventos.link(ev), "Link copiado."); };
+$("save").onclick = function () { EmpEventos.put(current()); drawSaved(); $("msg").textContent = "Evento salvo neste navegador."; };
+$("saved").onclick = function (e) {
+  const d = e.target.closest("[data-del]");
+  if (d) { EmpEventos.remove(d.dataset.del); drawSaved(); return; }
+  const ed = e.target.closest("[data-edit]");
+  if (!ed) return;
+  const ev = EmpEventos.list().find(function (x) { return x.id === ed.dataset.edit; });
+  if (!ev) return;
+  evId = ev.id;
+  const d2 = new Date(ev.at);
+  $("titulo").value = ev.titulo; $("conteudo").value = ev.conteudo || ""; $("vagas").value = ev.vagas || "";
+  $("data").value = d2.getFullYear() + "-" + String(d2.getMonth() + 1).padStart(2, "0") + "-" + String(d2.getDate()).padStart(2, "0");
+  $("hora").value = String(d2.getHours()).padStart(2, "0") + ":" + String(d2.getMinutes()).padStart(2, "0");
+  $("local").value = ev.local || ""; $("ip").value = ev.ip || ""; $("obs").value = ev.obs || ""; $("comp").value = ""; keptComp = ev.comp || "";
+  preview();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+preview();
+drawSaved();
+</script>
 </body>
 </html>

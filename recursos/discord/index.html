@@ -3,25 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bot do Discord — Empório dos Bots</title>
-<meta name="description" content="Tudo o que o bot faz pela sua guilda.">
+<title>Recursos: Discord | Empório dos Bots</title>
+<meta name="description" content="A conta do Empório é a sua conta do Discord e os anúncios do site são feitos para serem colados lá.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>.tabs a.tab { text-decoration: none; }</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
+  <div class="tabs" style="margin-top:6px"><a class="tab" href="/recursos/eventos/">Eventos</a><a class="tab" href="/recursos/builds/">Builds</a><a class="tab" href="/recursos/inscricoes/">Inscrições</a><a class="tab" href="/recursos/economia/">Economia</a><a class="tab on" href="/recursos/discord/">Discord</a></div>
   <section class="page-hero">
     <div class="eyebrow">Recursos</div>
-    <h1>Bot do Discord</h1>
-    <p class="subtitle">Tudo o que o bot faz pela sua guilda.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <h1>Tudo começa pelo Discord</h1>
+    <p class="subtitle">A conta do Empório é a sua conta do Discord e os anúncios do site são feitos para serem colados lá.</p>
+    <div class="row wrap" style="margin-top:18px"><a class="btn" href="/login/">Entrar com Discord</a><a class="btn secondary" href="/docs/">Ler a documentação</a></div>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Pings</h3><p>Eventos anunciados no canal certo.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>DM de build</h3><p>Cada um recebe a sua build no privado.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Party ao vivo</h3><p>Lista atualizada conforme o pessoal entra.</p></div></section>
+  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Login com Discord</h3><p>Não existe usuário nem senha do Empório. Você aprova o acesso no Discord e pronto. O site recebe só o seu nome, avatar e identificador.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Horário no fuso de cada um</h3><p>Os anúncios usam o formato de horário do Discord, que mostra a hora convertida para quem lê.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Links que viram páginas</h3><p>Eventos e composições viram links. Quem clica no Discord abre a página no site, mesmo sem conta.</p></div><div class="feature-card"><div class="feature-num">04</div><h3>Bot do Empório</h3><p>As builds que as guildas com o bot do Empório marcam como públicas aparecem na biblioteca do site, com o nome de quem compartilhou.</p></div></section>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/recursos/discord/");</script>
+<script>
+EmporioShell.renderTopbar("/recursos/eventos/");
+</script>
 </body>
 </html>

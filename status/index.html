@@ -3,10 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Status dos servidores — Empório dos Bots</title>
-<meta name="description" content="Se o Albion e o bot do Empório estão no ar agora.">
+<title>Status dos servidores | Empório dos Bots</title>
+<meta name="description" content="Status ao vivo dos servidores de Albion Online (Américas, Europa e Ásia) e do bot do Empório.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .srv h2 { display: flex; align-items: center; gap: 10px; }
+  .srv .big { font-size: 22px; font-weight: 800; margin: 6px 0 2px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +18,63 @@
   <section class="page-hero">
     <div class="eyebrow">Informação</div>
     <h1>Status dos servidores</h1>
-    <p class="subtitle">Se o Albion e o bot do Empório estão no ar agora.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Consulta o serverstatus oficial de cada região e o backend do Empório. Atualiza sozinho a cada minuto.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Albion</h3><p>Servidores EU, NA e Ásia.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Bot do Empório</h3><p>Se está respondendo no Discord.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Painel</h3><p>Se o site e a API estão no ar.</p></div></section>
+  <div class="grid3" id="cards"><div class="state"><span class="spin"></span>Consultando...</div></div>
+  <div class="section">
+    <h2>Empório</h2>
+    <div class="grid3" id="ours"></div>
+  </div>
+  <div class="section">
+    <h2>Mudanças registradas</h2>
+    <p class="subtitle">Toda vez que alguém abre esta página o estado é conferido e qualquer mudança fica registrada aqui. Veja também a <a href="/manutencao-albion/">manutenção diária</a>.</p>
+    <div id="log"></div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/status/");</script>
+<script>
+EmporioShell.renderTopbar("/status/");
+
+const LABEL = { online: ["No ar", "on"], offline: ["Fora do ar", "off"], starting: ["Iniciando", "warn"], unreachable: ["Sem resposta", "warn"] };
+function lab(s) { return LABEL[s] || [s, "warn"]; }
+function regionName(r) { return (Emp.REGIONS.find(function (x) { return x.id === r; }) || {}).label || r; }
+
+async function albion() {
+  try {
+    const d = await Emp.albion("status");
+    document.getElementById("cards").innerHTML = Emp.REGIONS.map(function (r) {
+      const s = d.now[r.id] || {};
+      const l = lab(s.status);
+      const since = (d.events || []).filter(function (e) { return e.r === r.id; }).pop();
+      return '<div class="card srv"><h2><span class="dot ' + l[1] + '"></span>' + r.label + '</h2><div class="big">' + l[0] + '</div>' +
+        '<div class="muted small">' + (s.message ? Emp.esc(s.message) + "<br>" : "") + "Resposta em " + s.ms + " ms · conferido " + Emp.ago(s.checked) +
+        (since && since.s === s.status ? "<br>Neste estado desde " + Emp.dateTime(since.t) : "") + "</div></div>";
+    }).join("");
+    const evs = (d.events || []).slice().reverse().slice(0, 40);
+    document.getElementById("log").innerHTML = evs.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>Quando</th><th>Região</th><th>Novo estado</th></tr></thead><tbody>' +
+      evs.map(function (e) { const l = lab(e.s); return "<tr><td>" + Emp.dateTime(e.t) + ' <span class="muted small">(' + Emp.ago(e.t) + ")</span></td><td>" + regionName(e.r) + '</td><td><span class="dot ' + l[1] + '"></span> ' + l[0] + "</td></tr>"; }).join("") +
+      "</tbody></table></div>" : '<p class="muted">Nada registrado ainda.</p>';
+  } catch (e) {
+    document.getElementById("cards").innerHTML = Emp.emptyState(Emp.esc(e.message));
+  }
+}
+
+async function ours() {
+  const t0 = performance.now();
+  let api = false;
+  try { api = (await fetch(window.EMPORIO_CONFIG.API_BASE + "/api/health", { cache: "no-store" })).ok; } catch (e) {}
+  const ms = Math.round(performance.now() - t0);
+  document.getElementById("ours").innerHTML =
+    '<div class="card srv"><h2><span class="dot ' + (api ? "on" : "off") + '"></span>Backend e login</h2><div class="big">' + (api ? "No ar" : "Sem resposta") +
+    '</div><div class="muted small">Login com Discord, builds e avaliações. Resposta em ' + ms + " ms.</div></div>" +
+    '<div class="card srv"><h2><span class="dot on"></span>Site</h2><div class="big">No ar</div><div class="muted small">Se você está lendo isto, o site está funcionando.</div></div>';
+}
+
+albion(); ours();
+setInterval(function () { albion(); ours(); }, 60000);
+</script>
 </body>
 </html>

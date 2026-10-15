@@ -3,10 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Composições — Empório dos Bots</title>
-<meta name="description" content="Comps prontas da comunidade, com as vagas e a build de cada função.">
+<title>Composições | Empório dos Bots</title>
+<meta name="description" content="Monte composições de Albion Online party por party, com função e arma de cada vaga, e compartilhe por link.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .cp-layout { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+  .saved { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .saved button { text-align: left; background: var(--bg-soft); border: 1px solid rgba(255,255,255,.06); color: var(--text); border-radius: 9px; padding: 9px 11px; cursor: pointer; font: inherit; font-size: 13px; }
+  .saved button.on, .saved button:hover { border-color: rgba(226,188,98,.5); }
+  .saved button small { display: block; color: var(--text-dim); font-size: 11.5px; }
+  .party { margin-top: 16px; }
+  .cp-layout > * { min-width: 0; }
+  .party-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .party-head .input { font-weight: 700; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .slot { background: var(--bg-soft); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px; display: flex; gap: 10px; align-items: flex-start; }
+  .slot img { width: 52px; height: 52px; flex-shrink: 0; }
+  .slot .ph { width: 52px; height: 52px; border-radius: 8px; background: rgba(255,255,255,.04); flex-shrink: 0; }
+  .slot .fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+  .slot .fields .input, .slot .fields .select { padding: 6px 8px; font-size: 12.5px; width: 100%; }
+  .slot .x { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .slot .x:hover { color: #e66a6a; }
+  .slot b { color: var(--text); font-size: 13.5px; }
+  .role { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  @media (max-width: 900px) { .cp-layout { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +38,192 @@
   <section class="page-hero">
     <div class="eyebrow">Ferramentas</div>
     <h1>Composições</h1>
-    <p class="subtitle">Comps prontas da comunidade, com as vagas e a build de cada função.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Monte a comp party por party, escolha a função e a arma de cada vaga e ligue uma build da biblioteca se quiser. As comps ficam salvas neste navegador e o link de compartilhar leva a comp inteira, sem precisar de conta.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Biblioteca de comps</h3><p>As composições mais votadas por conteúdo.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Vagas por função</h3><p>Tank, healer, suporte e DPS já distribuídos.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Usar na guilda</h3><p>Copie uma comp pro seu painel com um clique.</p></div></section>
+
+  <div class="cp-layout">
+    <div class="card">
+      <button class="btn" id="new" style="width:100%">Nova composição</button>
+      <div class="saved" id="saved"></div>
+    </div>
+    <div class="card" id="editor"></div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/composicoes/");</script>
+<script>
+EmporioShell.renderTopbar("/composicoes/");
+
+const ROLES = [
+  { k: "tank", n: "Tank", c: "#5b8def" }, { k: "healer", n: "Healer", c: "#6fcf8e" }, { k: "suporte", n: "Suporte", c: "#b48ef0" },
+  { k: "melee", n: "DPS melee", c: "#e05b5b" }, { k: "ranged", n: "DPS ranged", c: "#f0a35b" }, { k: "batedor", n: "Batedor", c: "#e8d36a" },
+];
+const KEY = "emp_comps";
+let DB = null, WEAPONS = [], BUILDS = [];
+let comp = null, viewOnly = false;
+
+function roleOf(k) { return ROLES.find(function (r) { return r.k === k; }) || ROLES[3]; }
+function blank() { return { id: Date.now().toString(36), n: "Nova composição", c: "ZvZ", p: [{ n: "Party 1", s: [{ r: "tank" }, { r: "healer" }, { r: "suporte" }, { r: "melee" }, { r: "ranged" }] }] }; }
+function loadSaved() { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { return []; } }
+function save() {
+  if (viewOnly) return;
+  const all = loadSaved().filter(function (c) { return c.id !== comp.id; });
+  all.unshift(comp);
+  try { localStorage.setItem(KEY, JSON.stringify(all.slice(0, 50))); } catch (e) {}
+  drawSaved();
+}
+function encode(c) {
+  const slim = { n: c.n, c: c.c, p: c.p };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(slim)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decode(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  return JSON.parse(decodeURIComponent(escape(atob(s))));
+}
+function weaponName(id) { return id ? Emp.itemName(DB, id).replace(/ do Ancião$/, "") : ""; }
+
+function drawSaved() {
+  const all = loadSaved();
+  document.getElementById("saved").innerHTML = all.length ? all.map(function (c) {
+    const n = c.p.reduce(function (s, p) { return s + p.s.length; }, 0);
+    return '<button data-id="' + c.id + '" class="' + (comp && c.id === comp.id ? "on" : "") + '">' + Emp.esc(c.n) + "<small>" + Emp.esc(c.c) + " · " + n + " vagas</small></button>";
+  }).join("") : '<p class="muted small">Nenhuma comp salva ainda.</p>';
+}
+
+function slotHtml(s, pi, si) {
+  const role = roleOf(s.r);
+  const img = s.w ? '<img src="' + Emp.icon(s.w) + '" alt="">' : '<div class="ph"></div>';
+  const build = s.b ? BUILDS.find(function (b) { return b.public_id === s.b; }) : null;
+  if (viewOnly) {
+    return '<div class="slot">' + img + '<div class="fields"><span class="role" style="color:' + role.c + '"><span class="dot" style="background:' + role.c + '"></span>' + role.n + "</span>" +
+      "<b>" + Emp.esc(weaponName(s.w) || "Arma livre") + "</b>" + (build ? '<a class="small" href="/builds/' + encodeURIComponent(build.public_id) + '">Build: ' + Emp.esc(build.nome) + "</a>" : "") +
+      (s.o ? '<span class="muted small">' + Emp.esc(s.o) + "</span>" : "") + "</div></div>";
+  }
+  return '<div class="slot" data-p="' + pi + '" data-s="' + si + '">' + img + '<div class="fields">' +
+    '<div class="row" style="gap:6px"><select class="select" data-f="r">' + ROLES.map(function (r) { return '<option value="' + r.k + '"' + (r.k === s.r ? " selected" : "") + ">" + r.n + "</option>"; }).join("") +
+    '</select><button class="x" data-act="del-slot" title="Remover vaga">✕</button></div>' +
+    '<input class="input" data-f="w" list="weapons" placeholder="Arma" value="' + Emp.esc(weaponName(s.w)) + '">' +
+    '<select class="select" data-f="b"><option value="">Sem build ligada</option>' + BUILDS.map(function (b) { return '<option value="' + Emp.esc(b.public_id) + '"' + (b.public_id === s.b ? " selected" : "") + ">" + Emp.esc(b.nome) + "</option>"; }).join("") + "</select>" +
+    '<input class="input" data-f="o" placeholder="Observação" value="' + Emp.esc(s.o || "") + '"></div></div>';
+}
+
+function draw() {
+  const ed = document.getElementById("editor");
+  const total = comp.p.reduce(function (s, p) { return s + p.s.length; }, 0);
+  const counts = {};
+  comp.p.forEach(function (p) { p.s.forEach(function (s) { counts[s.r] = (counts[s.r] || 0) + 1; }); });
+  const summary = '<div class="summary">' + ROLES.filter(function (r) { return counts[r.k]; }).map(function (r) {
+    return '<span class="badge" style="color:' + r.c + '">' + counts[r.k] + " " + r.n + "</span>";
+  }).join("") + '<span class="badge gold">' + total + " jogadores</span></div>";
+  const head = viewOnly
+    ? '<div class="row between wrap"><div><h2 style="margin:0">' + Emp.esc(comp.n) + '</h2><span class="muted small">' + Emp.esc(comp.c) + '</span></div><div class="actions"><button class="btn" data-act="copy-edit">Editar uma cópia</button><button class="btn secondary" data-act="discord">Copiar para o Discord</button></div></div>'
+    : '<div class="grid2"><label class="field">Nome<input class="input" data-c="n" value="' + Emp.esc(comp.n) + '"></label><label class="field">Conteúdo<input class="input" data-c="c" value="' + Emp.esc(comp.c) + '" placeholder="ZvZ, Castelo, Hellgate..."></label></div>' +
+      '<div class="actions" style="margin-top:12px"><button class="btn" data-act="share">Copiar link</button><button class="btn secondary" data-act="discord">Copiar para o Discord</button><button class="btn secondary" data-act="add-party">Adicionar party</button><button class="btn secondary" data-act="delete" style="margin-left:auto">Apagar</button></div><p class="muted small" id="msg" style="min-height:18px;margin:8px 0 0"></p>';
+  ed.innerHTML = head + summary + comp.p.map(function (p, pi) {
+    return '<div class="party"><div class="party-head">' + (viewOnly ? '<h3 style="margin:0">' + Emp.esc(p.n) + " · " + p.s.length + " vagas</h3>"
+      : '<input class="input" data-pn="' + pi + '" value="' + Emp.esc(p.n) + '" style="max-width:220px"><span class="muted small">' + p.s.length + ' vagas</span><button class="btn secondary" data-act="add-slot" data-p="' + pi + '" style="padding:6px 12px;font-size:12px">+ Vaga</button><button class="btn secondary" data-act="del-party" data-p="' + pi + '" style="padding:6px 12px;font-size:12px">Remover party</button>') +
+      '</div><div class="slots">' + p.s.map(function (s, si) { return slotHtml(s, pi, si); }).join("") + "</div></div>";
+  }).join("");
+}
+
+function msg(t) { const m = document.getElementById("msg"); if (m) m.textContent = t; }
+
+function discordText() {
+  let t = "**" + comp.n + "** (" + comp.c + ")\n";
+  comp.p.forEach(function (p) {
+    t += "\n__" + p.n + "__\n";
+    p.s.forEach(function (s, i) { t += (i + 1) + ". " + roleOf(s.r).n + ": " + (weaponName(s.w) || "livre") + (s.o ? " (" + s.o + ")" : "") + "\n"; });
+  });
+  return t + "\n" + location.origin + "/composicoes/ver/#" + encode(comp);
+}
+
+function copy(text, ok) {
+  navigator.clipboard.writeText(text).then(function () { msg(ok); alertIfView(ok); }, function () { prompt("Copie o texto:", text); });
+}
+function alertIfView(t) { if (viewOnly) { const b = document.querySelector('[data-act="discord"]'); if (b) b.textContent = t; } }
+
+document.getElementById("editor").addEventListener("input", function (e) {
+  const t = e.target;
+  if (t.dataset.c) { comp[t.dataset.c] = t.value; save(); return; }
+  if (t.dataset.pn != null) { comp.p[parseInt(t.dataset.pn, 10)].n = t.value; save(); return; }
+  const slot = t.closest(".slot[data-p]");
+  if (!slot || !t.dataset.f) return;
+  const s = comp.p[parseInt(slot.dataset.p, 10)].s[parseInt(slot.dataset.s, 10)];
+  if (t.dataset.f === "w") {
+    const w = WEAPONS.find(function (x) { return x.n.toLowerCase() === t.value.trim().toLowerCase(); });
+    s.w = w ? w.id : "";
+    const img = slot.querySelector("img, .ph");
+    if (w) img.outerHTML = '<img src="' + Emp.icon(w.id) + '" alt="">';
+  } else {
+    s[t.dataset.f] = t.value;
+  }
+  save();
+});
+document.getElementById("editor").addEventListener("change", function (e) {
+  if (e.target.dataset.f === "r" || e.target.dataset.f === "b") draw();
+});
+document.getElementById("editor").addEventListener("click", function (e) {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === "add-party") comp.p.push({ n: "Party " + (comp.p.length + 1), s: [{ r: "tank" }] });
+  if (act === "del-party") { if (!confirm("Remover essa party?")) return; comp.p.splice(parseInt(b.dataset.p, 10), 1); }
+  if (act === "add-slot") comp.p[parseInt(b.dataset.p, 10)].s.push({ r: "melee" });
+  if (act === "del-slot") { const sl = b.closest(".slot"); comp.p[parseInt(sl.dataset.p, 10)].s.splice(parseInt(sl.dataset.s, 10), 1); }
+  if (act === "share") { copy(location.origin + "/composicoes/ver/#" + encode(comp), "Link copiado."); return; }
+  if (act === "discord") { copy(discordText(), "Texto copiado."); return; }
+  if (act === "delete") {
+    if (!confirm("Apagar essa composição deste navegador?")) return;
+    try { localStorage.setItem(KEY, JSON.stringify(loadSaved().filter(function (c) { return c.id !== comp.id; }))); } catch (err) {}
+    const rest = loadSaved();
+    comp = rest[0] || blank();
+    drawSaved(); draw(); return;
+  }
+  if (act === "copy-edit") {
+    viewOnly = false;
+    comp = Object.assign({}, comp, { id: Date.now().toString(36), n: comp.n + " (cópia)" });
+    history.replaceState(null, "", "/composicoes/");
+    save(); draw(); return;
+  }
+  save(); draw();
+});
+document.getElementById("saved").addEventListener("click", function (e) {
+  const b = e.target.closest("[data-id]");
+  if (!b) return;
+  comp = loadSaved().find(function (c) { return c.id === b.dataset.id; });
+  viewOnly = false;
+  history.replaceState(null, "", "/composicoes/");
+  drawSaved(); draw();
+});
+document.getElementById("new").addEventListener("click", function () {
+  viewOnly = false; comp = blank();
+  history.replaceState(null, "", "/composicoes/");
+  save(); draw();
+});
+
+Promise.all([
+  Emp.items(),
+  fetch(window.EMPORIO_CONFIG.API_BASE + "/api/public/builds").then(function (r) { return r.json(); }).catch(function () { return []; }),
+]).then(function (res) {
+  DB = res[0];
+  BUILDS = (res[1] || []).slice().sort(function (a, b) { return (a.nome || "").localeCompare(b.nome || "", "pt-BR"); });
+  WEAPONS = Object.keys(DB.items).filter(function (id) {
+    return id.indexOf("T8_") === 0 && DB.items[id].s === "mainhand" && id.indexOf("_TOOL_") < 0;
+  }).map(function (id) { return { id: id, n: weaponName(id) }; });
+  const dl = document.createElement("datalist");
+  dl.id = "weapons";
+  dl.innerHTML = WEAPONS.map(function (w) { return '<option value="' + Emp.esc(w.n) + '">'; }).join("");
+  document.body.appendChild(dl);
+
+  if (location.pathname.indexOf("/composicoes/ver") === 0 && location.hash.length > 1) {
+    try { comp = decode(location.hash.slice(1)); viewOnly = true; } catch (e) { comp = null; }
+  }
+  if (!comp) comp = loadSaved()[0] || blank();
+  drawSaved();
+  draw();
+});
+</script>
 </body>
 </html>

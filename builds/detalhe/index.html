@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Build — Empório dos Bots</title>
+<title>Build | Empório dos Bots</title>
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
 <style>
@@ -37,7 +37,9 @@
   .abil-group { display:flex; align-items:center; gap:6px; background:var(--bg-soft); border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:5px 9px 5px 5px; }
   .abil-key { font-size:10.5px; font-weight:800; color:#191305; background:var(--gold); border-radius:5px; padding:2px 6px; }
   .abil-group img { width:26px; height:26px; border-radius:6px; }
-  .abil-group span { font-size:12px; color:var(--text-dim); }
+  .abil-group span { font-size:12px; color:var(--text-dim); min-width:0; overflow-wrap:anywhere; }
+  .abil-group { max-width:100%; flex-wrap:wrap; }
+  .item-row > div { min-width:0; }
   .swaps { margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .swaps img { width:30px; height:30px; }
   @media (max-width: 860px) { .bd-layout { grid-template-columns: 1fr; } .doll { max-width:360px; } }
@@ -46,11 +48,12 @@
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
-  <div class="crumb"><a href="/builds/">Builds</a> / <span id="crumb-name">…</span></div>
-  <div id="bd-root"><p class="subtitle">Carregando build…</p></div>
+  <div class="crumb"><a href="/builds/">Builds</a> / <span id="crumb-name">Build</span></div>
+  <div id="bd-root"><p class="subtitle">Carregando build...</p></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
 <script>
 window.EmporioShell.renderTopbar("/builds/");
@@ -77,12 +80,13 @@ Promise.all([
 ]).then(function(res){
   const b = (res[0]||[]).find(function(x){ return x.public_id === publicId; });
   const DB = res[1];
-  if (!b) { document.getElementById("bd-root").innerHTML = '<p class="subtitle">Essa build não existe mais ou foi tornada privada. <a href="/builds/">Voltar pra biblioteca</a></p>'; return; }
+  if (!b) { document.getElementById("bd-root").innerHTML = '<p class="subtitle">Essa build não está mais pública. <a href="/builds/">Voltar para a biblioteca</a></p>'; return; }
   render(b, DB);
 }).catch(function(){
-  document.getElementById("bd-root").innerHTML = '<p class="subtitle">Não deu pra carregar agora. Tenta de novo em instantes.</p>';
+  document.getElementById("bd-root").innerHTML = '<p class="subtitle">Não foi possível carregar a build agora. Tente de novo em alguns minutos.</p>';
 });
 
+function avalTxt(n){ n = n||0; return n === 0 ? "Nenhuma avaliação" : n === 1 ? "1 avaliação" : n + " avaliações"; }
 function itemName(DB,id){ const it = DB.items[baseId(id)]; return it ? it.n : id; }
 
 function abilitiesHtml(DB,id){
@@ -91,15 +95,17 @@ function abilitiesHtml(DB,id){
   const order = ["Q","W","E","R","D","F","A","P1","P2","P3"];
   const keys = Object.keys(it.g).sort(function(a,b){ return order.indexOf(a)-order.indexOf(b); });
   return '<div class="abil">' + keys.map(function(k){
-    const opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return s ? s : {n:sid,i:null}; });
+    // O render do Albion espera o nome interno da habilidade (a chave do
+    // catálogo), não o nome do sprite. Com o sprite, a maioria dava 404.
+    const opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return {id:sid, n: s ? s.n : sid}; });
     return '<div class="abil-group"><span class="abil-key">'+esc(k)+'</span>' + opts.map(function(s){
-      return (s.i ? '<img src="'+spellIcon(s.i)+'" alt="" title="'+esc(s.n)+'" loading="lazy">' : '') ;
+      return '<img src="'+spellIcon(s.id)+'" alt="'+esc(s.n)+'" title="'+esc(s.n)+'" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
     }).join("") + '<span>' + esc(opts.map(function(s){return s.n;}).join(" / ")) + '</span></div>';
   }).join("") + '</div>';
 }
 
 function render(b, DB){
-  document.title = (b.nome||"Build") + " — Empório dos Bots";
+  document.title = (b.nome||"Build") + " | Empório dos Bots";
   document.getElementById("crumb-name").textContent = b.nome || "Build";
   const eq = b.equip || {};
   const role = b.papel_cor ? '<span class="role-tag"><span class="role-dot" style="background:'+b.papel_cor+';color:'+b.papel_cor+'"></span>'+esc(b.papel_label)+'</span>' : '';
@@ -118,10 +124,10 @@ function render(b, DB){
   document.getElementById("bd-root").innerHTML =
     '<div class="bd-head"><div>' + role +
     '<h1>'+esc(b.nome||"Build")+'</h1><div class="bd-meta"><span class="cat-pill">'+esc(b.categoria||"Sem categoria")+'</span><span>por <b style="color:var(--text)">'+esc(b.shared_by_name||"Anônimo")+'</b></span></div></div>' +
-    '<div class="rate-box"><div class="big" id="avg">'+(b.avg_rating ? b.avg_rating.toFixed(1) : "—")+'</div>' +
-    '<div style="font-size:12px;color:var(--text-dim)" id="cnt">'+(b.rating_count||0)+' avaliação(ões)</div>' +
+    '<div class="rate-box"><div class="big" id="avg">'+(b.avg_rating ? b.avg_rating.toFixed(1) : "0.0")+'</div>' +
+    '<div style="font-size:12px;color:var(--text-dim)" id="cnt">'+avalTxt(b.rating_count)+'</div>' +
     '<div class="rate-stars" id="stars">'+[1,2,3,4,5].map(function(n){return '<button data-n="'+n+'" title="'+n+' estrela(s)">★</button>';}).join("")+'</div>' +
-    '<div style="font-size:11.5px;color:var(--text-dim);margin-top:6px" id="rate-msg">Dê sua nota</div></div></div>' +
+    '<div style="font-size:11.5px;color:var(--text-dim);margin-top:6px" id="rate-msg">Clique para dar sua nota</div></div></div>' +
     '<div class="bd-layout"><div class="doll">'+dollSlots+'</div><div class="items-list">'+(rows||'<p class="subtitle">Nenhum item equipado.</p>')+'</div></div>';
 
   document.querySelectorAll(".doll-slot[data-slot]").forEach(function(el){
@@ -135,17 +141,17 @@ function render(b, DB){
   document.querySelectorAll("#stars button").forEach(function(btn){
     btn.addEventListener("click", async function(){
       const msg = document.getElementById("rate-msg");
-      if (!window.EmporioAuth.getToken()) { msg.innerHTML = '<a href="/login/">Entre</a> pra avaliar'; return; }
+      if (!window.EmporioAuth.getToken()) { msg.innerHTML = '<a href="/login/">Entre</a> para avaliar'; return; }
       const n = parseInt(btn.dataset.n,10);
       try {
         const r = await window.EmporioAuth.apiFetch("/api/public/builds/"+encodeURIComponent(b.public_id)+"/rate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({stars:n})});
         if (!r.ok) throw new Error();
         const d = await r.json();
         document.getElementById("avg").textContent = d.avg_rating.toFixed(1);
-        document.getElementById("cnt").textContent = d.rating_count + " avaliação(ões)";
+        document.getElementById("cnt").textContent = avalTxt(d.rating_count);
         document.querySelectorAll("#stars button").forEach(function(x){ x.classList.toggle("on", parseInt(x.dataset.n,10) <= n); });
-        msg.textContent = "Valeu pela nota!";
-      } catch(e) { msg.textContent = "Não deu pra salvar agora."; }
+        msg.textContent = "Nota salva.";
+      } catch(e) { msg.textContent = "Não foi possível salvar a nota."; }
     });
   });
 }

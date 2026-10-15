@@ -3,10 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minhas guildas — Empório dos Bots</title>
-<meta name="description" content="Todas as guildas que você administra e que já têm o bot instalado.">
+<title>Minhas guildas | Empório dos Bots</title>
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .me { display: flex; align-items: center; gap: 16px; }
+  .me img, .me .av { width: 64px; height: 64px; border-radius: 50%; background: var(--gold-soft); display: flex; align-items: center; justify-content: center; color: var(--gold); font-weight: 800; font-size: 24px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +17,52 @@
   <section class="page-hero">
     <div class="eyebrow">Eventos</div>
     <h1>Minhas guildas</h1>
-    <p class="subtitle">Todas as guildas que você administra e que já têm o bot instalado.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Sua conta do Empório é a sua conta do Discord. Aqui aparecem seus dados de login e as guildas ligadas a ela.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Configurações</h3><p>Canais, cargos de gestor e conteúdos da guilda.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Membros</h3><p>Quem participa, presença e reputação.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Saldos</h3><p>Divisão de loot e saldo de cada membro.</p></div></section>
+  <div id="notice"></div>
+  <div id="root"><div class="state"><span class="spin"></span>Verificando login...</div></div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/painel/guildas/");</script>
+<script>
+EmporioShell.renderTopbar("/painel/guildas/");
+
+const erro = new URLSearchParams(location.search).get("erro");
+if (erro === "painel_legado_expirado") {
+  document.getElementById("notice").innerHTML = '<div class="card" style="margin-bottom:18px;border-color:rgba(226,188,98,.4)"><b>O painel antigo foi desativado.</b><p class="muted small" style="margin:6px 0 0">O endereço que você abriu era do painel anterior. As páginas novas ficam aqui no site.</p></div>';
+}
+
+const root = document.getElementById("root");
+const QUICK = [
+  ["/criar-evento/", "Criar evento", "Anúncio com horário local para o Discord"],
+  ["/composicoes/", "Composições", "Monte e compartilhe a comp da call"],
+  ["/builds/", "Builds", "Biblioteca de builds das guildas"],
+  ["/guildas/", "Ranking de guildas", "Como sua guilda aparece nas batalhas"],
+];
+
+window.EmporioAuth.me().then(function (user) {
+  if (!user) {
+    root.innerHTML = '<div class="card" style="max-width:520px"><h2>Entre com o Discord</h2><p class="muted">É o único login do Empório. Não pedimos usuário nem senha.</p>' +
+      '<a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a></div>';
+    return;
+  }
+  const name = user.global_name || user.username || "Jogador";
+  const avatar = user.id && user.avatar ? '<img src="https://cdn.discordapp.com/avatars/' + encodeURIComponent(user.id) + "/" + encodeURIComponent(user.avatar) + '.png?size=128" alt="">' : '<div class="av">' + Emp.esc(name.charAt(0).toUpperCase()) + "</div>";
+  const guilds = Array.isArray(user.guilds) ? user.guilds : [];
+  root.innerHTML =
+    '<div class="grid2"><div class="card"><div class="me">' + avatar + "<div><h2 style=\"margin:0\">" + Emp.esc(name) + "</h2>" +
+    (user.username && user.username !== name ? '<span class="muted small">@' + Emp.esc(user.username) + "</span>" : "") + "</div></div>" +
+    '<div class="row" style="margin-top:16px"><button class="btn secondary" id="logout">Sair</button></div></div>' +
+    '<div class="card"><h2>Guildas</h2>' + (guilds.length ? '<div class="table-wrap"><table class="table"><tbody>' + guilds.map(function (g) {
+      return "<tr><td><b>" + Emp.esc(g.name || g.nome || g.id) + "</b></td></tr>";
+    }).join("") + "</tbody></table></div>" : '<p class="muted">Nenhuma guilda ligada à sua conta ainda.</p>') + "</div></div>" +
+    '<div class="section"><h2>Atalhos</h2><div class="feature-grid">' + QUICK.map(function (q) {
+      return '<a class="feature-card" href="' + q[0] + '"><h3>' + q[1] + "</h3><p>" + q[2] + "</p></a>";
+    }).join("") + "</div></div>";
+  document.getElementById("logout").onclick = function () { window.EmporioAuth.logout(); };
+});
+</script>
 </body>
 </html>

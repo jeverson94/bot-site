@@ -3,10 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Disarray — Empório dos Bots</title>
-<meta name="description" content="Calcule a penalidade de desordem da sua party antes de entrar na luta.">
+<title>Disarray | Empório dos Bots</title>
+<meta name="description" content="Tabela de Disarray de Albion Online: quantos jogadores da mesma aliança geram cada nível, e o bônus das montarias de batalha.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .big-out { font-size: 44px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .mount { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .mount:last-child { border-bottom: none; }
+  .mount .ctl { display: flex; align-items: center; gap: 8px; }
+  .mount .ctl button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--bg-soft); color: var(--gold); font-size: 16px; cursor: pointer; }
+  .mount .ctl b { width: 24px; text-align: center; }
+  .meter { height: 8px; border-radius: 6px; background: rgba(255,255,255,.06); overflow: hidden; margin: 10px 0 4px; }
+  .meter i { display: block; height: 100%; background: var(--gold); }
+  .diss-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .table tr.hit td { background: var(--gold-soft); color: var(--gold); font-weight: 700; }
+  @media (max-width: 860px) { .diss-grid { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +27,101 @@
   <section class="page-hero">
     <div class="eyebrow">Diversão</div>
     <h1>Disarray</h1>
-    <p class="subtitle">Calcule a penalidade de desordem da sua party antes de entrar na luta.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Disarray (desordem) é a penalidade que o jogo aplica quando muitos jogadores da mesma aliança estão juntos na mesma área. A tabela mostra quantos jogadores geram cada nível, do 1 ao 60. Montarias de batalha somam pontos, e o que passar de 15 pontos vira Disarray extra.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Calculadora</h3><p>Informe o tamanho dos grupos e veja a penalidade.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Simulação</h3><p>Teste cenários antes da call.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Dicas</h3><p>Como dividir a party pra perder menos.</p></div></section>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Quantos jogadores vocês têm?</h2>
+      <label class="field">Jogadores da mesma aliança no cluster
+        <input class="input" id="players" type="number" min="0" max="400" value="40">
+      </label>
+      <div class="row" style="margin-top:18px; gap:24px; align-items:flex-end">
+        <div><div class="big-out" id="base">0</div><span class="muted small">Disarray pelos jogadores</span></div>
+        <div><div class="big-out" id="bonus" style="font-size:30px">+0</div><span class="muted small">bônus das montarias</span></div>
+        <div><div class="big-out" id="total" style="font-size:30px">0</div><span class="muted small">total</span></div>
+      </div>
+      <p class="muted small" id="next" style="margin-top:14px"></p>
+    </div>
+    <div class="card">
+      <h2>Montarias de batalha</h2>
+      <p class="muted small" style="margin-top:-4px">Cada montaria vale de 2 a 5 pontos. Os primeiros 15 pontos não contam.</p>
+      <div id="mounts"></div>
+      <div class="meter"><i id="meter" style="width:0"></i></div>
+      <div class="row between small muted"><span id="pts">0 de 15 pontos</span><button class="btn secondary" id="reset" style="padding:5px 12px;font-size:12px">Zerar</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Tabela completa</h2>
+    <p class="subtitle">Dados do patch 22.090.1. Até 20 jogadores não há Disarray.</p>
+    <div class="diss-grid" id="tables"></div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/disarray/");</script>
+<script>
+EmporioShell.renderTopbar("/disarray/");
+
+// Número mínimo de jogadores para cada nível de Disarray (índice 0 = nível 1).
+const MIN = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,36,37,39,41,44,46,
+  48,49,51,54,56,58,61,64,67,70,74,79,83,89,95,99,103,108,114,119,
+  126,133,141,148,154,160,167,175,183,192,200,207,215,223,232,242,252,264,276,290];
+const MAX_PLAYERS = 304;
+const MOUNTS = [
+  { pts: 2, n: "Rinoceronte, Ent, Balista" },
+  { pts: 3, n: "Aranha de Batalha" },
+  { pts: 4, n: "Águia, Behemoth, Juggernaut" },
+  { pts: 5, n: "Mamute, Bastião, Carruagem" },
+];
+const counts = MOUNTS.map(function () { return 0; });
+
+function dissFor(p) {
+  let lvl = 0;
+  for (let i = 0; i < MIN.length; i++) if (p >= MIN[i]) lvl = i + 1;
+  return lvl;
+}
+function rangeOf(i) {
+  const lo = MIN[i], hi = i + 1 < MIN.length ? MIN[i + 1] - 1 : MAX_PLAYERS;
+  return lo === hi ? String(lo) : lo + " a " + hi;
+}
+
+function update() {
+  const p = Math.max(0, parseInt(document.getElementById("players").value, 10) || 0);
+  const base = dissFor(p);
+  const pts = counts.reduce(function (s, c, i) { return s + c * MOUNTS[i].pts; }, 0);
+  const bonus = Math.max(0, pts - 15);
+  document.getElementById("base").textContent = base;
+  document.getElementById("bonus").textContent = "+" + bonus;
+  document.getElementById("total").textContent = base + bonus;
+  const nx = MIN.find(function (m) { return m > p; });
+  document.getElementById("next").textContent = nx ? "Com mais " + (nx - p) + (nx - p === 1 ? " jogador" : " jogadores") + " vocês sobem para o nível " + (dissFor(nx)) + "." : "Vocês estão no nível máximo da tabela.";
+  document.getElementById("pts").textContent = pts + " de 15 pontos" + (bonus ? ", " + bonus + " de bônus" : "");
+  document.getElementById("meter").style.width = Math.min(100, 100 * pts / 15) + "%";
+  document.querySelectorAll("tr[data-l]").forEach(function (tr) { tr.classList.toggle("hit", parseInt(tr.dataset.l, 10) === base); });
+  document.getElementById("mounts").innerHTML = MOUNTS.map(function (m, i) {
+    return '<div class="mount"><div><b>' + m.pts + ' pontos</b><div class="muted small">' + m.n + '</div></div><div class="ctl"><button data-i="' + i + '" data-d="-1">−</button><b>' + counts[i] + '</b><button data-i="' + i + '" data-d="1">+</button></div></div>';
+  }).join("");
+}
+
+document.getElementById("tables").innerHTML = [0, 1, 2].map(function (blk) {
+  let html = '<div class="table-wrap"><table class="table"><thead><tr><th>Nível</th><th class="num">Jogadores</th></tr></thead><tbody>';
+  for (let i = blk * 20; i < blk * 20 + 20; i++) html += '<tr data-l="' + (i + 1) + '"><td>' + (i + 1) + '</td><td class="num">' + rangeOf(i) + "</td></tr>";
+  return html + "</tbody></table></div>";
+}).join("");
+
+document.getElementById("players").addEventListener("input", update);
+document.getElementById("mounts").addEventListener("click", function (e) {
+  const b = e.target.closest("button[data-i]");
+  if (!b) return;
+  const i = parseInt(b.dataset.i, 10);
+  counts[i] = Math.max(0, Math.min(40, counts[i] + parseInt(b.dataset.d, 10)));
+  update();
+});
+document.getElementById("reset").addEventListener("click", function () { counts.fill(0); update(); });
+update();
+</script>
 </body>
 </html>

@@ -3,10 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blog — Empório dos Bots</title>
-<meta name="description" content="Novidades do Empório, guias e análises do meta.">
+<title>Blog | Empório dos Bots</title>
+<meta name="description" content="Novidades do Empório dos Bots.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .post { padding: 26px 0; border-bottom: 1px solid var(--card-border); max-width: 780px; }
+  .post:last-child { border-bottom: none; }
+  .post time { color: var(--gold); font-size: 12.5px; font-weight: 700; letter-spacing: .5px; }
+  .post h2 { margin: 6px 0 10px; font-size: 22px; }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +20,40 @@
   <section class="page-hero">
     <div class="eyebrow">Informação</div>
     <h1>Blog</h1>
-    <p class="subtitle">Novidades do Empório, guias e análises do meta.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">O que mudou no site.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Novidades</h3><p>O que mudou no bot e no site.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Guias</h3><p>Como tirar o máximo das ferramentas.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Meta</h3><p>Análises das lutas da temporada.</p></div></section>
+
+  <article class="post">
+    <time datetime="2026-10-15">15 de outubro de 2026</time>
+    <h2>Batalhas, mapa, mercado e mais ferramentas</h2>
+    <div class="legal-text">
+      <p>Todas as páginas do menu agora funcionam. As novidades:</p>
+      <ul>
+        <li><a href="/batalhas/">Batalhas</a> com o detalhe de cada luta, mortes e armas usadas.</li>
+        <li><a href="/guildas/">Ranking de guildas</a>, <a href="/batalhas/guerras/">Guerras</a> e a <a href="/batalhas/meta/">Tierlist de itens</a>, montados a partir das batalhas recentes.</li>
+        <li><a href="/mercado/">Mercado</a> com preços por cidade, tier, encanto e qualidade.</li>
+        <li><a href="/mapa/">Mapa</a> com rota mais curta entre zonas e opção de evitar zonas perigosas.</li>
+        <li><a href="/pontos-temporada/">Pontos de temporada</a>, <a href="/disarray/">Disarray</a> e a calculadora de divisão de loot em <a href="/recursos/economia/">Economia</a>.</li>
+        <li><a href="/composicoes/">Composições</a>, <a href="/criar-evento/">Criar evento</a> e <a href="/vod-review/">VOD review</a>, tudo compartilhável por link.</li>
+        <li><a href="/jogos/">Jogos</a>: item do dia e adivinhe a habilidade.</li>
+      </ul>
+      <p>Também corrigimos os ícones de habilidade que não carregavam na página das builds.</p>
+    </div>
+  </article>
+
+  <article class="post">
+    <time datetime="2026-10-15">15 de outubro de 2026</time>
+    <h2>Site novo no ar</h2>
+    <div class="legal-text">
+      <p>O Empório ganhou um site novo, com login pelo Discord e a biblioteca de builds das guildas. Cada build mostra o equipamento completo, as habilidades de cada slot e a nota dada pelos jogadores.</p>
+      <p>Na biblioteca, as builds também mostram a função na party (tank, healer, suporte ou DPS) com uma cor para cada uma.</p>
+    </div>
+  </article>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/blog/");</script>
+<script>EmporioShell.renderTopbar("/blog/");</script>
 </body>
 </html>

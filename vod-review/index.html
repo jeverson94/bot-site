@@ -3,10 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VOD review — Empório dos Bots</title>
-<meta name="description" content="Revise as gravações das calls com a sua party: marque momentos, desenhe e comente.">
+<title>VOD review | Empório dos Bots</title>
+<meta name="description" content="Revise gravações de luta: desenhe por cima do vídeo e deixe comentários no segundo exato. Funciona com YouTube e com arquivos do seu computador.">
 <link rel="stylesheet" href="/assets/css/theme.css">
 <link rel="stylesheet" href="/assets/css/pages.css">
+<style>
+  .vod-layout { display: grid; grid-template-columns: 1fr 330px; gap: 18px; align-items: start; }
+  .stage { position: relative; background: #000; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; border: 1px solid var(--card-border); }
+  .stage video, .stage #yt, .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .stage.drawing canvas { pointer-events: auto; cursor: crosshair; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .tools .tab { border: 1px solid rgba(255,255,255,.06); }
+  .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .swatch.on { border-color: var(--text); }
+  .notes { list-style: none; padding: 0; margin: 10px 0 0; max-height: 52vh; overflow-y: auto; }
+  .notes li { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 13.5px; display: flex; gap: 10px; align-items: flex-start; }
+  .notes li .ts { color: var(--gold); font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .notes li .del { margin-left: auto; background: none; border: none; color: var(--text-dim); cursor: pointer; }
+  .start { max-width: 640px; }
+  @media (max-width: 900px) { .vod-layout { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
@@ -14,14 +31,234 @@
   <section class="page-hero">
     <div class="eyebrow">Ferramentas</div>
     <h1>VOD review</h1>
-    <p class="subtitle">Revise as gravações das calls com a sua party: marque momentos, desenhe e comente.</p>
-    <span class="soon">Em construção · chega em breve</span>
+    <p class="subtitle">Cole um link do YouTube ou abra um vídeo do seu computador. Pause, desenhe por cima do quadro e deixe comentários no segundo exato. Reviews de vídeos do YouTube podem ser compartilhadas por link.</p>
   </section>
-  <section class="feature-grid"><div class="feature-card"><div class="feature-num">01</div><h3>Marcadores</h3><p>Pontos importantes da luta com um clique.</p></div><div class="feature-card"><div class="feature-num">02</div><h3>Desenho</h3><p>Setas e áreas por cima do vídeo.</p></div><div class="feature-card"><div class="feature-num">03</div><h3>Compartilhar</h3><p>Mande o link pros membros revisarem juntos.</p></div></section>
+
+  <div class="card start" id="start">
+    <label class="field">Link do YouTube<input class="input" id="url" placeholder="https://www.youtube.com/watch?v=..."></label>
+    <div class="row wrap" style="margin-top:12px">
+      <button class="btn" id="open">Abrir vídeo</button>
+      <span class="muted small">ou</span>
+      <label class="btn secondary" style="cursor:pointer">Escolher arquivo<input type="file" id="file" accept="video/*" hidden></label>
+    </div>
+    <p class="muted small" id="start-msg" style="margin:10px 0 0">Arquivos do computador não saem do seu navegador. Para guardar a review, use Exportar.</p>
+  </div>
+
+  <div class="vod-layout" id="work" style="display:none">
+    <div>
+      <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+      <div class="tools">
+        <button class="btn" id="draw-toggle">Desenhar</button>
+        <div class="tabs" id="shape"><button class="tab on" data-s="pen">Livre</button><button class="tab" data-s="arrow">Seta</button><button class="tab" data-s="rect">Caixa</button><button class="tab" data-s="circle">Círculo</button></div>
+        <div class="row" id="colors"></div>
+        <button class="btn secondary" id="undo">Desfazer</button>
+      </div>
+      <p class="muted small" style="margin-top:8px">Ao ligar o desenho o vídeo pausa. Cada desenho fica preso ao segundo em que foi feito e aparece de novo quando o vídeo passa por ali.</p>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:6px">Comentários</h2>
+      <div class="row"><input class="input" id="note" placeholder="Comentário no tempo atual" style="flex:1"><button class="btn" id="add">Ok</button></div>
+      <ul class="notes" id="notes"></ul>
+      <div class="row wrap" style="margin-top:12px">
+        <button class="btn secondary" id="share">Copiar link</button>
+        <button class="btn secondary" id="export">Exportar</button>
+        <label class="btn secondary" style="cursor:pointer">Importar<input type="file" id="import" accept="application/json" hidden></label>
+        <button class="btn secondary" id="close">Trocar vídeo</button>
+      </div>
+      <p class="muted small" id="msg" style="min-height:18px;margin:8px 0 0"></p>
+    </div>
+  </div>
 </main>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/auth.js"></script>
+<script src="/assets/js/common.js"></script>
 <script src="/assets/js/shell.js"></script>
-<script>window.EmporioShell.renderTopbar("/vod-review/");</script>
+<script>
+EmporioShell.renderTopbar("/vod-review/");
+
+const COLORS = ["#e2bc62", "#e05b5b", "#5b8def", "#6fcf8e", "#ffffff"];
+const $ = function (id) { return document.getElementById(id); };
+let src = null;           // { kind: "yt", id } ou { kind: "file", name }
+let player = null;        // adaptador com time(), seek(t), pause()
+let notes = [];           // { t, text }
+let shapes = [];          // { t, s, c, p: [[x,y],...] } coordenadas de 0 a 1
+let tool = "pen", color = COLORS[0], drawing = false, cur = null;
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function fmt(t) { t = Math.max(0, Math.floor(t)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+function msg(t) { $("msg").textContent = t; }
+function storeKey() { return src ? "emp_vod_" + (src.kind === "yt" ? src.id : "file_" + src.name) : null; }
+function persist() { try { localStorage.setItem(storeKey(), JSON.stringify({ notes: notes, shapes: shapes })); } catch (e) {} }
+function restore() {
+  try { const d = JSON.parse(localStorage.getItem(storeKey()) || "null"); if (d) { notes = d.notes || []; shapes = d.shapes || []; } } catch (e) {}
+}
+
+function ytId(u) {
+  const m = /(?:youtu\.be\/|v=|\/embed\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/.exec(u || "");
+  return m ? m[1] : (/^[A-Za-z0-9_-]{11}$/.test(u || "") ? u : null);
+}
+
+function showWork() { $("start").style.display = "none"; $("work").style.display = ""; resize(); drawNotes(); }
+
+function openYouTube(id) {
+  src = { kind: "yt", id: id };
+  $("stage").insertAdjacentHTML("afterbegin", '<div id="yt"></div>');
+  function make() {
+    const yt = new YT.Player("yt", { videoId: id, playerVars: { rel: 0, modestbranding: 1 } });
+    player = {
+      time: function () { return yt.getCurrentTime ? yt.getCurrentTime() : 0; },
+      seek: function (t) { yt.seekTo(t, true); },
+      pause: function () { yt.pauseVideo && yt.pauseVideo(); },
+    };
+  }
+  if (window.YT && YT.Player) make();
+  else {
+    window.onYouTubeIframeAPIReady = make;
+    const s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+  }
+  showWork();
+}
+
+function openFile(f) {
+  src = { kind: "file", name: f.name + "_" + f.size };
+  const v = document.createElement("video");
+  v.controls = true;
+  v.src = URL.createObjectURL(f);
+  $("stage").insertBefore(v, cv);
+  player = { time: function () { return v.currentTime; }, seek: function (t) { v.currentTime = t; }, pause: function () { v.pause(); } };
+  showWork();
+}
+
+// ---------- desenho ----------
+function resize() {
+  const r = cv.getBoundingClientRect();
+  cv.width = Math.round(r.width * devicePixelRatio);
+  cv.height = Math.round(r.height * devicePixelRatio);
+}
+function paintShape(sh) {
+  const W = cv.width, H = cv.height, p = sh.p;
+  ctx.strokeStyle = sh.c; ctx.lineWidth = 3 * devicePixelRatio; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (sh.s === "pen") {
+    p.forEach(function (pt, i) { if (i) ctx.lineTo(pt[0] * W, pt[1] * H); else ctx.moveTo(pt[0] * W, pt[1] * H); });
+  } else if (p.length > 1) {
+    const a = p[0], b = p[p.length - 1];
+    const x1 = a[0] * W, y1 = a[1] * H, x2 = b[0] * W, y2 = b[1] * H;
+    if (sh.s === "rect") ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    if (sh.s === "circle") ctx.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2);
+    if (sh.s === "arrow") {
+      const ang = Math.atan2(y2 - y1, x2 - x1), h = 16 * devicePixelRatio;
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.moveTo(x2, y2); ctx.lineTo(x2 - h * Math.cos(ang - 0.45), y2 - h * Math.sin(ang - 0.45));
+      ctx.moveTo(x2, y2); ctx.lineTo(x2 - h * Math.cos(ang + 0.45), y2 - h * Math.sin(ang + 0.45));
+    }
+  }
+  ctx.stroke();
+}
+function paint() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!player) return;
+  const t = player.time();
+  shapes.forEach(function (sh) { if (Math.abs(sh.t - t) < 2) paintShape(sh); });
+  if (cur) paintShape(cur);
+}
+(function loop() { paint(); requestAnimationFrame(loop); })();
+
+function pos(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+cv.addEventListener("pointerdown", function (e) { if (!drawing) return; cur = { t: player.time(), s: tool, c: color, p: [pos(e)] }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", function (e) { if (!cur) return; if (tool === "pen") cur.p.push(pos(e)); else cur.p[1] = pos(e); });
+cv.addEventListener("pointerup", function () {
+  if (!cur) return;
+  if (cur.p.length > 1) { cur.p = cur.p.map(function (q) { return [+q[0].toFixed(4), +q[1].toFixed(4)]; }); shapes.push(cur); persist(); }
+  cur = null;
+});
+window.addEventListener("resize", function () { if (src) resize(); });
+
+$("draw-toggle").onclick = function () {
+  drawing = !drawing;
+  $("stage").classList.toggle("drawing", drawing);
+  this.textContent = drawing ? "Parar de desenhar" : "Desenhar";
+  if (drawing && player) player.pause();
+};
+$("shape").onclick = function (e) {
+  const b = e.target.closest("[data-s]"); if (!b) return;
+  tool = b.dataset.s;
+  this.querySelectorAll(".tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+};
+$("colors").innerHTML = COLORS.map(function (c, i) { return '<span class="swatch' + (i ? "" : " on") + '" data-c="' + c + '" style="background:' + c + '"></span>'; }).join("");
+$("colors").onclick = function (e) {
+  const s = e.target.closest("[data-c]"); if (!s) return;
+  color = s.dataset.c;
+  this.querySelectorAll(".swatch").forEach(function (x) { x.classList.toggle("on", x === s); });
+};
+$("undo").onclick = function () { shapes.pop(); persist(); };
+
+// ---------- comentários ----------
+function drawNotes() {
+  notes.sort(function (a, b) { return a.t - b.t; });
+  $("notes").innerHTML = notes.length ? notes.map(function (n, i) {
+    return '<li><span class="ts" data-t="' + n.t + '">' + fmt(n.t) + "</span><span>" + Emp.esc(n.text) + '</span><button class="del" data-i="' + i + '" title="Apagar">✕</button></li>';
+  }).join("") : '<li class="muted small">Nenhum comentário ainda. Pause no momento certo e escreva acima.</li>';
+}
+function addNote() {
+  const text = $("note").value.trim();
+  if (!text || !player) return;
+  notes.push({ t: Math.round(player.time() * 10) / 10, text: text });
+  $("note").value = "";
+  persist(); drawNotes();
+}
+$("add").onclick = addNote;
+$("note").addEventListener("keydown", function (e) { if (e.key === "Enter") addNote(); });
+$("notes").onclick = function (e) {
+  const ts = e.target.closest("[data-t]");
+  if (ts && player) { player.seek(parseFloat(ts.dataset.t)); player.pause(); return; }
+  const d = e.target.closest("[data-i]");
+  if (d) { notes.splice(parseInt(d.dataset.i, 10), 1); persist(); drawNotes(); }
+};
+
+// ---------- salvar e compartilhar ----------
+function packed() { return { v: src.kind === "yt" ? src.id : null, n: notes, s: shapes }; }
+function b64(o) { return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function unb64(s) { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))))); }
+
+$("share").onclick = function () {
+  if (src.kind !== "yt") { msg("Vídeos do computador não podem ser compartilhados por link. Use Exportar e mande o arquivo junto com o vídeo."); return; }
+  const link = location.origin + "/vod-review/#" + b64(packed());
+  if (link.length > 15000) { msg("Review grande demais para um link. Use Exportar."); return; }
+  navigator.clipboard.writeText(link).then(function () { msg("Link copiado."); }, function () { prompt("Copie o link:", link); });
+};
+$("export").onclick = function () {
+  const blob = new Blob([JSON.stringify(packed())], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "review-" + (src.kind === "yt" ? src.id : "video") + ".json";
+  a.click();
+};
+$("import").onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  f.text().then(function (t) {
+    const d = JSON.parse(t);
+    notes = d.n || []; shapes = d.s || [];
+    persist(); drawNotes(); msg("Review importada.");
+  }).catch(function () { msg("Arquivo inválido."); });
+};
+$("close").onclick = function () { location.href = "/vod-review/"; };
+
+$("open").onclick = function () {
+  const id = ytId($("url").value.trim());
+  if (!id) { $("start-msg").textContent = "Não reconheci esse link. Use um link do YouTube."; return; }
+  openYouTube(id); restore(); drawNotes();
+};
+$("file").onchange = function () { if (this.files[0]) { openFile(this.files[0]); restore(); drawNotes(); } };
+
+if (location.hash.length > 1) {
+  try {
+    const d = unb64(location.hash.slice(1));
+    if (d.v) { openYouTube(d.v); notes = d.n || []; shapes = d.s || []; drawNotes(); }
+  } catch (e) {}
+}
+</script>
 </body>
 </html>

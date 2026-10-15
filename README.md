@@ -1,7 +1,18 @@
-# Empório dos Bots — site
+# Empório dos Bots: site
 
-Site estático (HTML/CSS/JS puro) do Empório dos Bots, publicado via deploy automático do Hostinger a partir deste branch (`main`), direto na pasta `public_html` de `seagreen-rat-589164.hostingersite.com`.
+Site estático (HTML, CSS e JS sem build) do Empório dos Bots, publicado pelo deploy automático do Hostinger a partir da branch `main`, na pasta `public_html` de `seagreen-rat-589164.hostingersite.com`.
 
-Fala com o backend (`eventsite.py`, rodando na VM Oracle) via `fetch` para tudo que é dado dinâmico: login (Discord OAuth), composições, eventos, biblioteca de builds. Não tem build step (sem Node/webpack) — é só HTML/CSS/JS direto, pra funcionar na hospedagem compartilhada do Hostinger sem complicação.
+## De onde vêm os dados
 
-Em construção — ver histórico de commits.
+- **Backend do Empório** (`eventsite.py`, na VM): login com Discord (`/auth/discord/*`, `/api/me`) e a biblioteca de builds (`/api/public/builds`). Endereço em `assets/js/config.js`.
+- **`api/albion.php`**: proxy da API pública do Albion (batalhas, busca de guildas, status dos servidores), que não aceita chamadas direto do navegador. Só repassa rotas fixas, valida os parâmetros e guarda cache em `api/cache/` (fora do git, bloqueado por `.htaccess`).
+- **Albion Data Project**: preços do mercado, chamado direto do navegador.
+- **`assets/data/`**: catálogo de itens e habilidades em PT-BR (`itens.json`), grafo do mapa (`mapa.json`) e tabelas de temporada (`temporada.json`), gerados a partir do ao-bin-dumps. `clipes.json` é a lista de clipes publicados, editada à mão.
+
+## O que fica no navegador
+
+Composições, eventos, reviews de vídeo e placares dos jogos ficam no `localStorage` de quem usa, e são compartilhados por link (o conteúdo vai codificado depois do `#`).
+
+## Rotas
+
+As rotas dinâmicas (`/builds/<id>`, `/batalhas/<id>`, `/clipes/<id>`, `/composicoes/ver/`) e os redirecionamentos estão no `.htaccess`.
