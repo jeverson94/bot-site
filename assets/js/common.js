@@ -57,8 +57,10 @@
     return CFG.RENDER_BASE + "/" + encodeURIComponent(id) + ".png?count=1&quality=" + (quality || 1) + "&size=128";
   }
 
+  // Os ícones de habilidade ficam no próprio site (assets/img/spells), baixados
+  // do render do Albion. Assim não dependem da API externa para aparecer.
   function spellIcon(spellId) {
-    return "https://render.albiononline.com/v1/spell/" + encodeURIComponent(spellId) + ".png";
+    return "/assets/img/spells/" + encodeURIComponent(spellId) + ".webp";
   }
 
   let itemsPromise = null;

@@ -66,7 +66,13 @@ const SLOTS = [
 const MOUNT = {key:"mount",label:"Montaria"};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 function icon(id){ return CFG.RENDER_BASE + "/" + encodeURIComponent(id) + ".png?count=1&quality=1"; }
-function spellIcon(ic){ return "https://render.albiononline.com/v1/spell/" + encodeURIComponent(ic) + ".png"; }
+// Ícones salvos no próprio site. Se faltar algum, tenta o render do Albion.
+function spellIcon(id){ return "/assets/img/spells/" + encodeURIComponent(id) + ".webp"; }
+function spellFallback(img){
+  if (img.dataset.fb) { img.style.visibility = "hidden"; return; }
+  img.dataset.fb = "1";
+  img.src = "https://render.albiononline.com/v1/spell/" + encodeURIComponent(img.dataset.id) + ".png?size=64";
+}
 function baseId(id){ return (id||"").replace(/@\d+$/,""); }
 function tierLabel(id){ const m=/^T(\d+)_/.exec(id||""); const e=/@(\d+)$/.exec(id||""); return m ? "T"+m[1]+(e?"."+e[1]:"") : ""; }
 
@@ -99,7 +105,7 @@ function abilitiesHtml(DB,id){
     // catálogo), não o nome do sprite. Com o sprite, a maioria dava 404.
     const opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return {id:sid, n: s ? s.n : sid}; });
     return '<div class="abil-group"><span class="abil-key">'+esc(k)+'</span>' + opts.map(function(s){
-      return '<img src="'+spellIcon(s.id)+'" alt="'+esc(s.n)+'" title="'+esc(s.n)+'" loading="lazy" onerror="this.style.visibility=\'hidden\'">';
+      return '<img src="'+spellIcon(s.id)+'" data-id="'+esc(s.id)+'" alt="'+esc(s.n)+'" title="'+esc(s.n)+'" loading="lazy" onerror="spellFallback(this)">';
     }).join("") + '<span>' + esc(opts.map(function(s){return s.n;}).join(" / ")) + '</span></div>';
   }).join("") + '</div>';
 }
