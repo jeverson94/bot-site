@@ -3,66 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minhas guildas | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015c">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015c">
-<style>
-  .me { display: flex; align-items: center; gap: 16px; }
-  .me img, .me .av { width: 64px; height: 64px; border-radius: 50%; background: var(--gold-soft); display: flex; align-items: center; justify-content: center; color: var(--gold); font-weight: 800; font-size: 24px; }
-</style>
+<title>Guildas | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015e">
+
 </head>
 <body>
 <div id="topbar-root"></div>
-<main class="page-wrap">
-  <section class="page-hero">
-    <div class="eyebrow">Eventos</div>
-    <h1>Minhas guildas</h1>
-    <p class="subtitle">Sua conta do Empório é a sua conta do Discord. Aqui aparecem seus dados de login e as guildas ligadas a ela.</p>
-  </section>
-  <div id="notice"></div>
-  <div id="root"><div class="state"><span class="spin"></span>Verificando login...</div></div>
-</main>
-<script src="/assets/js/config.js?v=20261015c"></script>
-<script src="/assets/js/auth.js?v=20261015c"></script>
-<script src="/assets/js/common.js?v=20261015c"></script>
-<script src="/assets/js/shell.js?v=20261015c"></script>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Guildas</h1><p class="subtitle" style="margin:0">A guilda do jogo que você acompanha e as guildas ligadas à sua conta do Discord.</p></div></div>
+    <div id="notice"></div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Guilda no Albion</h2>
+        <div id="guild"></div>
+        <div class="pick-wrap" style="margin-top:10px"><input class="input" id="q-g" placeholder="Buscar guilda pelo nome" style="width:100%"><div id="o-g"></div></div>
+      </div>
+      <div class="card" id="discord"><div class="state"><span class="spin"></span>Verificando login...</div></div>
+    </div>
+    <div class="section" id="members-sec" style="display:none"><h2>Membros</h2><p class="subtitle" id="m-sub"></p>
+      <input class="input" id="m-q" placeholder="Filtrar membro" style="max-width:260px;margin-bottom:12px">
+      <div class="table-wrap"><table class="table"><thead><tr><th>Membro</th><th class="num">Fama de abate</th><th class="num">Fama de morte</th><th class="num">Fama PvE</th></tr></thead><tbody id="m-rows"></tbody></table></div>
+    </div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/painel.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
 <script>
-EmporioShell.renderTopbar("/painel/guildas/");
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
 
-const erro = new URLSearchParams(location.search).get("erro");
-if (erro === "painel_legado_expirado") {
-  document.getElementById("notice").innerHTML = '<div class="card" style="margin-bottom:18px;border-color:rgba(226,188,98,.4)"><b>O painel antigo foi desativado.</b><p class="muted small" style="margin:6px 0 0">O endereço que você abriu era do painel anterior. As páginas novas ficam aqui no site.</p></div>';
+if (new URLSearchParams(location.search).get("erro") === "painel_legado_expirado") {
+  $("notice").innerHTML = '<div class="card" style="margin-bottom:18px;border-color:rgba(226,188,98,.4)"><b>O painel antigo foi desativado.</b><p class="muted small" style="margin:6px 0 0">O endereço que você abriu era do painel anterior. As páginas novas ficam aqui.</p></div>';
 }
-
-const root = document.getElementById("root");
-const QUICK = [
-  ["/criar-evento/", "Criar evento", "Anúncio com horário local para o Discord"],
-  ["/composicoes/", "Composições", "Monte e compartilhe a comp da call"],
-  ["/builds/", "Builds", "Biblioteca de builds das guildas"],
-  ["/guildas/", "Ranking de guildas", "Como sua guilda aparece nas batalhas"],
-];
-
-window.EmporioAuth.me().then(function (user) {
-  if (!user) {
-    root.innerHTML = '<div class="card" style="max-width:520px"><h2>Entre com o Discord</h2><p class="muted">É o único login do Empório. Não pedimos usuário nem senha.</p>' +
-      '<a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a></div>';
-    return;
-  }
-  const name = user.global_name || user.username || "Jogador";
-  const avatar = user.id && user.avatar ? '<img src="https://cdn.discordapp.com/avatars/' + encodeURIComponent(user.id) + "/" + encodeURIComponent(user.avatar) + '.png?size=128" alt="">' : '<div class="av">' + Emp.esc(name.charAt(0).toUpperCase()) + "</div>";
-  const guilds = Array.isArray(user.guilds) ? user.guilds : [];
-  root.innerHTML =
-    '<div class="grid2"><div class="card"><div class="me">' + avatar + "<div><h2 style=\"margin:0\">" + Emp.esc(name) + "</h2>" +
-    (user.username && user.username !== name ? '<span class="muted small">@' + Emp.esc(user.username) + "</span>" : "") + "</div></div>" +
-    '<div class="row" style="margin-top:16px"><button class="btn secondary" id="logout">Sair</button></div></div>' +
-    '<div class="card"><h2>Guildas</h2>' + (guilds.length ? '<div class="table-wrap"><table class="table"><tbody>' + guilds.map(function (g) {
-      return "<tr><td><b>" + Emp.esc(g.name || g.nome || g.id) + "</b></td></tr>";
-    }).join("") + "</tbody></table></div>" : '<p class="muted">Nenhuma guilda ligada à sua conta ainda.</p>') + "</div></div>" +
-    '<div class="section"><h2>Atalhos</h2><div class="feature-grid">' + QUICK.map(function (q) {
-      return '<a class="feature-card" href="' + q[0] + '"><h3>' + q[1] + "</h3><p>" + q[2] + "</p></a>";
-    }).join("") + "</div></div>";
-  document.getElementById("logout").onclick = function () { window.EmporioAuth.logout(); };
+let members = [];
+function drawMembers() {
+  const q = $("m-q").value.trim().toLowerCase();
+  $("m-rows").innerHTML = members.filter(function (m) { return !q || m.n.toLowerCase().indexOf(q) >= 0; }).map(function (m) {
+    return "<tr><td><b>" + Emp.esc(m.n) + '</b></td><td class="num">' + Emp.num(m.kf) + '</td><td class="num">' + Emp.num(m.df) + '</td><td class="num">' + Emp.num(m.pve) + "</td></tr>";
+  }).join("");
+}
+$("m-q").addEventListener("input", drawMembers);
+function drawGuild() {
+  const g = P.getLink("guilda");
+  if (!g) { $("guild").innerHTML = '<p class="muted">Escolha a guilda que você joga. Ela é usada na página Presença.</p>'; $("members-sec").style.display = "none"; return; }
+  $("guild").innerHTML = Emp.loading("Buscando " + g.n + "...");
+  Promise.all([Emp.albion("guild", { s: g.s, id: g.id }), Emp.albion("members", { s: g.s, id: g.id })]).then(function (r) {
+    const d = r[0]; members = r[1].sort(function (a, b) { return b.kf - a.kf; });
+    $("guild").innerHTML = '<div class="row between"><div><b style="font-size:17px">' + Emp.esc(d.Name) + '</b><div class="muted small">' + (d.AllianceTag ? "[" + Emp.esc(d.AllianceTag) + "] " : "") + "Fundada por " + Emp.esc(d.FounderName || "?") + '</div></div><button class="btn secondary" id="unlink" style="padding:5px 10px;font-size:12px">Trocar</button></div>' +
+      '<div class="stats" style="margin-top:12px"><div class="stat"><b>' + (d.MemberCount || members.length) + '</b><span>Membros</span></div><div class="stat"><b>' + Emp.num(d.killFame) + '</b><span>Fama de abate</span></div><div class="stat"><b>' + Emp.num(d.DeathFame) + '</b><span>Fama de morte</span></div></div>' +
+      '<a class="small" href="/painel/presenca/">Ver presença nas batalhas</a>';
+    $("unlink").onclick = function () { P.setLink("guilda", null); drawGuild(); };
+    $("members-sec").style.display = "";
+    $("m-sub").textContent = members.length + " membros, ordenados por fama de abate.";
+    drawMembers();
+  }).catch(function (e) { $("guild").innerHTML = '<p class="muted">' + Emp.esc(e.message) + "</p>"; });
+}
+P.picker($("q-g"), $("o-g"), "guilds", function (x) { P.setLink("guilda", { id: x.id, n: x.n, s: Emp.getRegion() }); $("q-g").value = ""; drawGuild(); });
+drawGuild();
+window.EmporioAuth.me().then(function (u) {
+  if (!u) { $("discord").innerHTML = '<h2>Guildas do bot</h2><p class="muted">Entre com o Discord para ver as guildas ligadas à sua conta.</p><a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a>'; return; }
+  const gs = Array.isArray(u.guilds) ? u.guilds : [];
+  $("discord").innerHTML = '<h2>Guildas do bot</h2>' + (gs.length ? gs.map(function (g) { return '<div class="row" style="padding:6px 0"><b>' + Emp.esc(g.name || g.nome || g.id) + "</b></div>"; }).join("") : '<p class="muted">Nenhuma guilda do Discord ligada à sua conta ainda.</p>');
 });
+
 </script>
 </body>
 </html>

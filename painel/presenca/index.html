@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presença | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015e">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Presença</h1><p class="subtitle" style="margin:0">Quem da guilda apareceu nas batalhas registradas pela API do Albion. Conta as últimas 200 batalhas da guilda.</p></div></div>
+    <div class="toolbar">
+      <div class="pick-wrap" style="flex:1;max-width:360px"><input class="input" id="q-g" placeholder="Buscar guilda" style="width:100%"><div id="o-g"></div></div>
+      <select class="select" id="min"><option value="1">Qualquer batalha</option><option value="10">Batalhas com 10+ jogadores</option><option value="20">Batalhas com 20+ jogadores</option><option value="40">Batalhas com 40+ jogadores</option></select>
+      <input class="input" id="f" placeholder="Filtrar membro" style="max-width:200px">
+    </div>
+    <p class="muted small" id="info"></p>
+    <div class="stats" id="sum" style="margin-bottom:16px"></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Membro</th><th class="num">Batalhas</th><th class="num">Presença</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th><th>Última vez</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="state"></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/painel.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/presenca/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+let G = P.getLink("guilda"), battles = [], members = [];
+async function load() {
+  if (!G) { $("state").innerHTML = Emp.emptyState("Escolha uma guilda na busca acima."); return; }
+  $("q-g").value = G.n;
+  $("state").innerHTML = Emp.loading("Buscando as batalhas de " + G.n + "...");
+  $("rows").innerHTML = ""; $("sum").innerHTML = ""; $("info").textContent = "";
+  try {
+    battles = [];
+    for (let i = 0; i < 4; i++) {
+      const page = await Emp.albion("battles", { s: G.s, guildId: G.id, offset: i * 50, limit: 50 });
+      page.forEach(function (b) { battles.push(b); });
+      if (page.length < 50) break;
+    }
+    members = await Emp.albion("members", { s: G.s, id: G.id }).catch(function () { return []; });
+    $("state").innerHTML = "";
+    draw();
+  } catch (e) { $("state").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+}
+function draw() {
+  const min = parseInt($("min").value, 10);
+  const list = battles.filter(function (b) { return Object.keys(b.players || {}).length >= min; });
+  const by = {};
+  members.forEach(function (m) { by[m.id] = { n: m.n, b: 0, k: 0, d: 0, f: 0, last: null, member: true }; });
+  list.forEach(function (b) {
+    Object.entries(b.players || {}).forEach(function (e) {
+      const p = e[1];
+      if (p.guildId !== G.id) return;
+      const o = by[e[0]] || (by[e[0]] = { n: p.name, b: 0, k: 0, d: 0, f: 0, last: null, member: false });
+      o.b++; o.k += p.kills; o.d += p.deaths; o.f += p.killFame;
+      if (!o.last || b.startTime > o.last) o.last = b.startTime;
+    });
+  });
+  const q = $("f").value.trim().toLowerCase();
+  const rows = Object.values(by).filter(function (o) { return !q || o.n.toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) { return b.b - a.b || b.f - a.f; });
+  const active = Object.values(by).filter(function (o) { return o.b > 0; }).length;
+  if (list.length) {
+    const from = list[list.length - 1].startTime;
+    $("info").textContent = list.length + " batalhas de " + G.n + " desde " + Emp.dateTime(from) + ".";
+  } else $("info").textContent = "Nenhuma batalha com esse filtro.";
+  $("sum").innerHTML = '<div class="stat"><b>' + list.length + '</b><span>Batalhas</span></div><div class="stat"><b>' + members.length + '</b><span>Membros</span></div><div class="stat"><b>' + active + '</b><span>Apareceram</span></div><div class="stat"><b>' + Math.max(0, members.length - active) + "</b><span>Não apareceram</span></div>";
+  $("rows").innerHTML = rows.map(function (o) {
+    const pct = list.length ? Math.round(100 * o.b / list.length) : 0;
+    return "<tr><td><b>" + Emp.esc(o.n) + "</b>" + (o.member ? "" : ' <span class="badge">saiu da guilda</span>') + '</td><td class="num">' + o.b + '</td><td class="num ' + (pct >= 30 ? "good" : pct ? "" : "bad") + '">' + pct + '%</td><td class="num">' + o.k + '</td><td class="num">' + o.d + '</td><td class="num">' + Emp.num(o.f) + '</td><td class="muted small">' + (o.last ? Emp.ago(o.last) : "nunca") + "</td></tr>";
+  }).join("");
+}
+P.picker($("q-g"), $("o-g"), "guilds", function (x) { G = { id: x.id, n: x.n, s: Emp.getRegion() }; P.setLink("guilda", G); load(); });
+$("min").addEventListener("change", draw);
+$("f").addEventListener("input", draw);
+load();
+
+</script>
+</body>
+</html>

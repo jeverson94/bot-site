@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Build | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015c">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015c">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/habilidades.css?v=20261015e">
 <style>
   .crumb { color: var(--text-dim); font-size: 13px; margin: 8px 0 22px; }
   .crumb a { color: var(--text-dim); }
@@ -45,24 +46,6 @@
   @media (max-width: 860px) { .bd-layout { grid-template-columns: 1fr; } .doll { max-width:360px; } }
   .abil-group img[data-sp] { cursor: help; transition: transform .1s; }
   .abil-group img[data-sp]:hover { transform: scale(1.12); }
-  .sp-n { cursor: help; }
-  .sp-n:hover { color: var(--text); }
-  .sp-tip { position: fixed; z-index: 60; width: 420px; max-width: calc(100vw - 24px); background: #151a24; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.55); padding: 14px 16px; font-size: 13.5px; line-height: 1.55; color: var(--text-dim); display: none; pointer-events: none; }
-  .sp-tip.show { display: block; }
-  .sp-tip .hd { display: flex; align-items: center; gap: 12px; }
-  .sp-tip .hd img { width: 40px; height: 40px; border-radius: 8px; }
-  .sp-tip .hd b { display: block; color: var(--text); font-size: 15px; }
-  .sp-tip .hd small { color: var(--gold); font-weight: 700; font-size: 11.5px; letter-spacing: .5px; }
-  .sp-tip .st { display: flex; flex-wrap: wrap; gap: 4px 16px; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); margin: 12px 0 10px; padding: 8px 0; font-size: 12.5px; }
-  .sp-tip .st b { color: var(--text); margin-left: 4px; }
-  .sp-tip .ds { white-space: normal; }
-  .sp-tip .t-dmg { color: #f06a6a; font-weight: 600; }
-  .sp-tip .t-heal { color: #6fcf8e; font-weight: 600; }
-  .sp-tip .t-buff { color: #e6c35c; font-weight: 600; }
-  .sp-tip .t-debuff { color: #e6a35c; font-weight: 600; }
-  .sp-tip .t-cc { color: #7fb2ff; font-weight: 600; }
-  .sp-tip .t-mobility { color: #6fd6d6; font-weight: 600; }
-  .sp-tip .t-other { color: var(--text); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -71,10 +54,12 @@
   <div class="crumb"><a href="/builds/">Builds</a> / <span id="crumb-name">Build</span></div>
   <div id="bd-root"><p class="subtitle">Carregando build...</p></div>
 </main>
-<script src="/assets/js/config.js?v=20261015c"></script>
-<script src="/assets/js/auth.js?v=20261015c"></script>
-<script src="/assets/js/common.js?v=20261015c"></script>
-<script src="/assets/js/shell.js?v=20261015c"></script>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
+<script src="/assets/js/habilidades.js?v=20261015e"></script>
 <script>
 window.EmporioShell.renderTopbar("/builds/");
 const CFG = window.EMPORIO_CONFIG;
@@ -100,13 +85,26 @@ const pathPart = decodeURIComponent(window.location.pathname.replace(/^\/builds\
 const qsId = new URLSearchParams(location.search).get("id");
 const publicId = qsId || pathPart;
 
-Promise.all([
+const isShared = /^\/builds\/ver\/?$/.test(location.pathname) && location.hash.length > 1;
+
+if (isShared) {
+  // Build compartilhada por link (feita na oficina): vem inteira depois do #.
+  fetch("/assets/data/itens.json").then(function(r){return r.json();}).then(function(DB){
+    let b = null;
+    try { b = window.MinhasBuilds.decode(location.hash.slice(1)); } catch (e) {}
+    if (!b) { document.getElementById("bd-root").innerHTML = '<p class="subtitle">Esse link de build está incompleto.</p>'; return; }
+    const r = window.MinhasBuilds.role(b.papel);
+    b.papel_cor = r ? r.c : null; b.papel_label = r ? r.n : "";
+    b.categoria = (b.conteudo || []).join(" · ");
+    b.shared = true;
+    render(b, DB);
+  });
+} else Promise.all([
   fetch(CFG.API_BASE + "/api/public/builds").then(function(r){return r.json();}),
   fetch("/assets/data/itens.json").then(function(r){return r.json();}).catch(function(){return {items:{},spells:{}};}),
 ]).then(function(res){
   const b = (res[0]||[]).find(function(x){ return x.public_id === publicId; });
   const DB = res[1];
-  window.__DB = DB;
   if (!b) { document.getElementById("bd-root").innerHTML = '<p class="subtitle">Essa build não está mais pública. <a href="/builds/">Voltar para a biblioteca</a></p>'; return; }
   render(b, DB);
 }).catch(function(){
@@ -116,7 +114,7 @@ Promise.all([
 function avalTxt(n){ n = n||0; return n === 0 ? "Nenhuma avaliação" : n === 1 ? "1 avaliação" : n + " avaliações"; }
 function itemName(DB,id){ const it = DB.items[baseId(id)]; return it ? it.n : id; }
 
-function abilitiesHtml(DB,id){
+function abilitiesHtml(DB,id,chosen){
   const it = DB.items[baseId(id)];
   if (!it || !it.g) return "";
   const order = ["Q","W","E","R","D","F","A","P1","P2","P3"];
@@ -124,7 +122,9 @@ function abilitiesHtml(DB,id){
   return '<div class="abil">' + keys.map(function(k){
     // O render do Albion espera o nome interno da habilidade (a chave do
     // catálogo), não o nome do sprite. Com o sprite, a maioria dava 404.
-    const opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return {id:sid, n: s ? s.n : sid}; });
+    let opts = it.g[k].map(function(sid){ const s = DB.spells[sid]; return {id:sid, n: s ? s.n : sid}; });
+    // Build da oficina: mostra só a habilidade escolhida em cada tecla.
+    if (chosen && chosen[k]) opts = opts.filter(function(o){ return o.id === chosen[k]; });
     return '<div class="abil-group"><span class="abil-key">'+esc(k)+'</span>' + opts.map(function(s){
       return '<img src="'+spellIcon(s.id)+'" data-id="'+esc(s.id)+'" data-sp="'+esc(s.id)+'" data-k="'+esc(k)+'" alt="'+esc(s.n)+'" loading="lazy" onerror="spellFallback(this)">';
     }).join("") + '<span>' + opts.map(function(s){ return '<span class="sp-n" data-sp="'+esc(s.id)+'" data-k="'+esc(k)+'">'+esc(s.n)+'</span>'; }).join(" / ") + '</span></div>';
@@ -146,15 +146,17 @@ function render(b, DB){
     const s = eq[sd.key]; const id = s.item;
     const swaps = (s.swaps||[]).length ? '<div class="swaps">Swaps: ' + s.swaps.map(function(w){ return '<img src="'+icon(w)+'" title="'+esc(itemName(DB,w))+'" alt="">'; }).join("") + '</div>' : '';
     return '<div class="item-row" id="row-'+sd.key+'"><img class="ic" src="'+icon(id)+'" alt=""><div style="min-width:0">' +
-      '<div class="slotname">'+sd.label+' · '+tierLabel(id)+'</div><h3>'+esc(itemName(DB,id))+'</h3>' + abilitiesHtml(DB,id) + swaps + '</div></div>';
+      '<div class="slotname">'+sd.label+' · '+tierLabel(id)+'</div><h3>'+esc(itemName(DB,id))+'</h3>' + abilitiesHtml(DB,id,(b.sp||{})[sd.key]) + swaps + '</div></div>';
   }).join("");
   document.getElementById("bd-root").innerHTML =
     '<div class="bd-head"><div>' + role +
-    '<h1>'+esc(b.nome||"Build")+'</h1><div class="bd-meta"><span class="cat-pill">'+esc(b.categoria||"Sem categoria")+'</span><span>por <b style="color:var(--text)">'+esc(b.shared_by_name||"Anônimo")+'</b></span></div></div>' +
-    '<div class="rate-box"><div class="big" id="avg">'+(b.avg_rating ? b.avg_rating.toFixed(1) : "0.0")+'</div>' +
+    '<h1>'+esc(b.nome||"Build")+'</h1><div class="bd-meta"><span class="cat-pill">'+esc(b.categoria||"Sem categoria")+'</span>' +
+    (b.shared ? '<span>Build compartilhada por link</span>' : '<span>por <b style="color:var(--text)">'+esc(b.shared_by_name||"Anônimo")+'</b></span>') + '</div>' +
+    (b.notas ? '<p class="subtitle" style="white-space:pre-wrap;max-width:640px;margin-top:10px">'+esc(b.notas)+'</p>' : '') + '</div>' +
+    (b.shared ? '<div class="rate-box"><a class="btn" id="copy-mine" href="#">Salvar nas minhas builds</a></div>' : '<div class="rate-box"><div class="big" id="avg">'+(b.avg_rating ? b.avg_rating.toFixed(1) : "0.0")+'</div>' +
     '<div style="font-size:12px;color:var(--text-dim)" id="cnt">'+avalTxt(b.rating_count)+'</div>' +
     '<div class="rate-stars" id="stars">'+[1,2,3,4,5].map(function(n){return '<button data-n="'+n+'" title="'+n+' estrela(s)">★</button>';}).join("")+'</div>' +
-    '<div style="font-size:11.5px;color:var(--text-dim);margin-top:6px" id="rate-msg">Clique para dar sua nota</div></div></div>' +
+    '<div style="font-size:11.5px;color:var(--text-dim);margin-top:6px" id="rate-msg">Clique para dar sua nota</div></div>') + '</div>' +
     '<div class="bd-layout"><div class="doll">'+dollSlots+'</div><div class="items-list">'+(rows||'<p class="subtitle">Nenhum item equipado.</p>')+'</div></div>';
 
   document.querySelectorAll(".doll-slot[data-slot]").forEach(function(el){
@@ -164,6 +166,14 @@ function render(b, DB){
       const row = document.getElementById("row-"+el.dataset.slot);
       if (row) { row.classList.add("sel"); row.scrollIntoView({behavior:"smooth", block:"center"}); }
     });
+  });
+  const cm = document.getElementById("copy-mine");
+  if (cm) cm.addEventListener("click", function(e){
+    e.preventDefault();
+    const nb = window.MinhasBuilds.blank();
+    ["nome","papel","conteudo","notas","equip","sp"].forEach(function(k){ if (b[k] != null) nb[k] = b[k]; });
+    window.MinhasBuilds.put(nb);
+    location.href = "/painel/builds/oficina/?id=" + nb.id;
   });
   document.querySelectorAll("#stars button").forEach(function(btn){
     btn.addEventListener("click", async function(){
@@ -183,46 +193,6 @@ function render(b, DB){
   });
 }
 
-// ---------- Tooltip das habilidades ----------
-// Textos e números vêm de assets/data/habilidades.json, gerado a partir dos
-// arquivos do jogo (spells.xml + localização PT-BR).
-let HAB = null;
-const habReady = fetch("/assets/data/habilidades.json?v=20261015d").then(function(r){ return r.json(); }).then(function(d){ HAB = d; }).catch(function(){ HAB = {}; });
-const tip = document.createElement("div");
-tip.className = "sp-tip";
-document.body.appendChild(tip);
-const KEY_TXT = {P1:"Passiva", P2:"Passiva", P3:"Passiva"};
-function markup(t){
-  return esc(t)
-    .replace(/\[#\]\s*/g, "• ")
-    .replace(/\[(dmg|heal|buff|debuff|cc|mobility|other)\]/g, '<span class="t-$1">')
-    .replace(/\[\/(dmg|heal|buff|debuff|cc|mobility|other)\]/g, "</span>")
-    .replace(/\[\/?[\w#]*\]/g, "")
-    .replace(/\n/g, "<br>");
-}
-let tipFor = null;
-function showTip(el){
-  const id = el.dataset.sp;
-  if (!HAB) { habReady.then(function(){ if (tipFor === el) showTip(el); }); }
-  tipFor = el;
-  const h = (HAB && HAB[id]) || { d: "", s: [] };
-  const sp = window.__DB && window.__DB.spells[id];
-  const k = el.dataset.k;
-  tip.innerHTML = '<div class="hd"><img src="'+spellIcon(id)+'" alt=""><div><b>'+esc(sp ? sp.n : id)+'</b><small>'+esc(KEY_TXT[k] || ("Tecla " + k))+'</small></div></div>' +
-    (h.s.length ? '<div class="st">' + h.s.map(function(x){ return '<span>'+esc(x[0])+'<b>'+esc(x[1])+'</b></span>'; }).join("") + '</div>' : '<div style="height:10px"></div>') +
-    '<div class="ds">' + (HAB ? (markup(h.d) || "Sem descrição.") : "Carregando...") + '</div>';
-  tip.classList.add("show");
-  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-  let x = r.left + r.width / 2 - tw / 2, y = r.bottom + 10;
-  x = Math.max(12, Math.min(x, window.innerWidth - tw - 12));
-  if (y + th > window.innerHeight - 12) y = Math.max(12, r.top - th - 10);
-  tip.style.left = x + "px"; tip.style.top = y + "px";
-}
-function hideTip(){ tip.classList.remove("show"); tipFor = null; }
-document.addEventListener("mouseover", function(e){ const el = e.target.closest("[data-sp]"); if (el) showTip(el); });
-document.addEventListener("mouseout", function(e){ const el = e.target.closest("[data-sp]"); if (el && !el.contains(e.relatedTarget)) hideTip(); });
-document.addEventListener("click", function(e){ const el = e.target.closest("[data-sp]"); if (el) { if (tipFor === el) hideTip(); else showTip(el); } else hideTip(); });
-window.addEventListener("scroll", hideTip, { passive: true });
 </script>
 </body>
 </html>

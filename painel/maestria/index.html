@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maestria | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015e">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Maestria</h1><p class="subtitle" style="margin:0">Fama do personagem e as armas que ele mais usou nos abates e mortes recentes. A API pública do Albion não informa a especialização de cada arma, então a página mostra o uso real nas lutas.</p></div></div>
+    <div class="toolbar"><div class="pick-wrap" style="flex:1;max-width:360px"><input class="input" id="q-p" placeholder="Buscar personagem" style="width:100%"><div id="o-p"></div></div></div>
+    <div id="root"></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/painel.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/maestria/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+let C = P.getLink("personagem");
+function weaponsTable(evs, who, title) {
+  const by = {};
+  evs.forEach(function (e) { const w = e[who].eq.MainHand; if (!w) return; const k = Emp.plainId(w); by[k] = by[k] || { id: w, c: 0 }; by[k].c++; });
+  const list = Object.values(by).sort(function (a, b) { return b.c - a.c; });
+  return '<div class="card"><h2>' + title + "</h2>" + (list.length ? list.map(function (x) {
+    return '<div class="row" style="padding:5px 0"><img class="ico" src="' + Emp.icon(x.id) + '" alt=""><span style="flex:1">' + Emp.esc(Emp.itemBaseName(window.__DB, x.id)) + '</span><b>' + x.c + "</b></div>";
+  }).join("") : '<p class="muted">Nada registrado.</p>') + "</div>";
+}
+function evList(evs, mine) {
+  return evs.slice(0, 10).map(function (e) {
+    const other = mine === "k" ? e.v : e.k;
+    return '<tr><td class="muted small">' + Emp.ago(e.t) + "</td><td>" + (e[mine].eq.MainHand ? '<img class="ico sm" src="' + Emp.icon(e[mine].eq.MainHand) + '" alt="">' : "") + "</td><td><b>" + Emp.esc(other.n) + '</b> <span class="muted small">' + Emp.esc(other.g || "") + '</span></td><td class="num">' + Emp.num(e.f) + "</td><td>" + (e.b ? '<a class="small" href="/batalhas/' + e.b + "?s=" + C.s + '">batalha</a>' : "") + "</td></tr>";
+  }).join("");
+}
+async function load() {
+  if (!C) { $("root").innerHTML = Emp.emptyState("Busque um personagem acima. Ele fica ligado ao seu painel."); return; }
+  $("q-p").value = C.n;
+  $("root").innerHTML = Emp.loading("Buscando " + C.n + "...");
+  try {
+    const r = await Promise.all([Emp.albion("player", { s: C.s, id: C.id }), Emp.items()]);
+    const d = r[0]; window.__DB = r[1];
+    const p = d.player, lt = p.LifetimeStatistics || {}, g = lt.Gathering || {};
+    $("root").innerHTML =
+      '<div class="card"><div class="row between wrap"><div><h2 style="margin:0">' + Emp.esc(p.Name) + '</h2><span class="muted">' + Emp.esc(p.GuildName || "Sem guilda") + (p.AllianceName ? " [" + Emp.esc(p.AllianceName) + "]" : "") + "</span></div></div>" +
+      '<div class="stats" style="margin-top:14px">' + [["Fama de abate", p.KillFame], ["Fama de morte", p.DeathFame], ["Razão", null, (p.FameRatio || 0).toFixed(2)], ["Fama PvE", (lt.PvE || {}).Total], ["Fama de coleta", (g.All || {}).Total], ["Fama de criação", (lt.Crafting || {}).Total], ["Fama de pesca", lt.FishingFame], ["Fama de cultivo", lt.FarmingFame]].map(function (x) {
+        return '<div class="stat"><b>' + (x[2] != null ? x[2] : Emp.num(x[1] || 0)) + "</b><span>" + x[0] + "</span></div>";
+      }).join("") + "</div></div>" +
+      '<div class="grid2 section">' + weaponsTable(d.kills, "k", "Armas nos abates recentes") + weaponsTable(d.deaths, "v", "Armas nas mortes recentes") + "</div>" +
+      '<div class="grid2 section"><div><h2>Abates recentes</h2><div class="table-wrap"><table class="table"><tbody>' + (evList(d.kills, "k") || '<tr><td class="muted">Nenhum.</td></tr>') + '</tbody></table></div></div><div><h2>Mortes recentes</h2><div class="table-wrap"><table class="table"><tbody>' + (evList(d.deaths, "v") || '<tr><td class="muted">Nenhuma.</td></tr>') + "</tbody></table></div></div></div>";
+  } catch (e) { $("root").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+}
+P.picker($("q-p"), $("o-p"), "players", function (x) { C = { id: x.id, n: x.n, s: Emp.getRegion() }; P.setLink("personagem", C); load(); });
+load();
+
+</script>
+</body>
+</html>

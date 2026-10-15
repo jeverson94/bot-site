@@ -4,7 +4,8 @@
     { label: "Eventos", items: [
       { href: "/criar-evento/", label: "Criar evento", desc: "Monte o anúncio da call com horário local" },
       { href: "/eventos/", label: "Eventos", desc: "Calls da sua guilda" },
-      { href: "/painel/guildas/", label: "Minhas guildas", desc: "Sua conta e as guildas com o bot" },
+      { href: "/painel/", label: "Meu painel", desc: "Perfil, builds, presença e maestria" },
+      { href: "/painel/builds/", label: "Minhas builds", desc: "Monte builds com habilidades e swaps" },
     ]},
     { label: "Batalhas", items: [
       { href: "/batalhas/", label: "Batalhas", desc: "Lutas recentes por servidor" },
@@ -127,7 +128,7 @@
       const name = user.global_name || user.username || "Jogador";
       el.innerHTML =
         '<div style="display:flex; align-items:center; gap:10px;">' +
-        '<a href="/painel/guildas/" style="color:var(--text-dim); font-size:13px;">' + name + "</a>" +
+        '<a href="/painel/" style="color:var(--text-dim); font-size:13px;">' + name + "</a>" +
         '<button class="btn secondary" id="btn-logout" style="padding:7px 14px; font-size:12.5px;">Sair</button></div>';
       document.getElementById("btn-logout").addEventListener("click", function () { window.EmporioAuth.logout(); });
     } else {

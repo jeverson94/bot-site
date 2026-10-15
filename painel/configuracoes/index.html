@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurações | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015e">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Configurações</h1><p class="subtitle" style="margin:0">Conta, servidor padrão e os dados guardados neste navegador.</p></div></div>
+    <div class="grid2">
+      <div class="card" id="conta"></div>
+      <div class="card"><h2>Servidor padrão</h2><p class="muted small">Usado em batalhas, ranking, mercado, presença e maestria.</p><div id="region"></div></div>
+      <div class="card"><h2>Personagem e guilda</h2><div id="links"></div></div>
+      <div class="card"><h2>Seus dados</h2><p class="muted small">Builds, composições, eventos e reviews ficam neste navegador. Exporte para levar para outro computador.</p>
+        <div class="row wrap"><button class="btn" id="exp">Exportar tudo</button><label class="btn secondary" style="cursor:pointer">Importar<input type="file" id="imp" accept="application/json" hidden></label><button class="btn secondary" id="wipe">Apagar tudo</button></div>
+        <p class="muted small" id="msg" style="min-height:18px;margin:8px 0 0"></p></div>
+    </div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/painel.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/configuracoes/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+window.EmporioAuth.me().then(function (u) {
+  $("conta").innerHTML = u
+    ? '<h2>Conta</h2><p>Conectado como <b>' + Emp.esc(u.global_name || u.username) + '</b> pelo Discord.</p><button class="btn secondary" id="out">Sair</button><p class="muted small" style="margin-top:10px">Para remover o acesso de vez, vá em Configurações do Discord, Aplicativos autorizados.</p>'
+    : '<h2>Conta</h2><p class="muted">Você não está logado.</p><a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a>';
+  const o = $("out"); if (o) o.onclick = function () { window.EmporioAuth.logout(); };
+});
+Emp.regionTabs($("region"), function () {});
+function drawLinks() {
+  const c = P.getLink("personagem"), g = P.getLink("guilda");
+  $("links").innerHTML = '<div class="row between" style="padding:6px 0"><span>Personagem: <b>' + (c ? Emp.esc(c.n) : "nenhum") + "</b></span>" + (c ? '<button class="btn secondary" data-un="personagem" style="padding:4px 10px;font-size:12px">Desligar</button>' : '<a class="small" href="/painel/">Ligar</a>') + "</div>" +
+    '<div class="row between" style="padding:6px 0"><span>Guilda: <b>' + (g ? Emp.esc(g.n) : "nenhuma") + "</b></span>" + (g ? '<button class="btn secondary" data-un="guilda" style="padding:4px 10px;font-size:12px">Desligar</button>' : '<a class="small" href="/painel/guildas/">Ligar</a>') + "</div>";
+}
+$("links").addEventListener("click", function (e) { const b = e.target.closest("[data-un]"); if (b) { P.setLink(b.dataset.un, null); drawLinks(); } });
+drawLinks();
+function mine(k) { return k.indexOf("emp_") === 0 && k !== "emporio_session_token"; }
+$("exp").onclick = function () {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (mine(k)) data[k] = localStorage.getItem(k); }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ tipo: "emporio-dados", versao: 1, dados: data })], { type: "application/json" }));
+  a.download = "emporio-dados.json"; a.click();
+  $("msg").textContent = Object.keys(data).length + " itens exportados.";
+};
+$("imp").onchange = function () {
+  const f = this.files[0]; if (!f) return;
+  f.text().then(function (t) {
+    const d = JSON.parse(t);
+    if (d.tipo !== "emporio-dados") throw new Error();
+    Object.keys(d.dados).forEach(function (k) { if (mine(k)) localStorage.setItem(k, d.dados[k]); });
+    $("msg").textContent = "Dados importados."; drawLinks();
+  }).catch(function () { $("msg").textContent = "Arquivo inválido."; });
+};
+$("wipe").onclick = function () {
+  if (!confirm("Apagar builds, composições, eventos, reviews e preferências deste navegador? Isso não tem volta.")) return;
+  const ks = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (mine(k)) ks.push(k); }
+  ks.forEach(function (k) { localStorage.removeItem(k); });
+  $("msg").textContent = ks.length + " itens apagados."; drawLinks();
+};
+
+</script>
+</body>
+</html>

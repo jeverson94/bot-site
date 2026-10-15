@@ -298,6 +298,36 @@ switch ($r) {
         echo $body;
         break;
     }
+    case 'members': {
+        $s = param_region();
+        $id = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
+        $body = fetch_one(HOSTS[$s] . "/guilds/$id/members", 1800);
+        if ($body === null) fail(404, 'guilda não encontrada');
+        $out = [];
+        foreach (json_decode($body, true) ?: [] as $m) {
+            $lt = $m['LifetimeStatistics'] ?? [];
+            $out[] = ['id' => $m['Id'], 'n' => $m['Name'], 'kf' => $m['KillFame'] ?? 0, 'df' => $m['DeathFame'] ?? 0, 'pve' => $lt['PvE']['Total'] ?? 0];
+        }
+        echo json_encode($out);
+        break;
+    }
+    case 'player': {
+        $s = param_region();
+        $id = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
+        $urls = [HOSTS[$s] . "/players/$id", HOSTS[$s] . "/players/$id/kills", HOSTS[$s] . "/players/$id/deaths"];
+        $res = fetch_many($urls, 600);
+        if ($res[$urls[0]] === null) fail(404, 'jogador não encontrado');
+        $slim = function ($list, $who) {
+            $o = [];
+            foreach (json_decode($list ?? '[]', true) ?: [] as $e) {
+                $o[] = ['t' => $e['TimeStamp'], 'f' => $e['TotalVictimKillFame'] ?? 0, 'b' => $e['BattleId'] ?? null,
+                        'k' => slim_player($e['Killer']), 'v' => slim_player($e['Victim'])];
+            }
+            return $o;
+        };
+        echo json_encode(['player' => json_decode($res[$urls[0]], true), 'kills' => $slim($res[$urls[1]], 'k'), 'deaths' => $slim($res[$urls[2]], 'v')]);
+        break;
+    }
     case 'recent': {
         $s = param_region();
         echo json_encode(recent_battles($s, 20));

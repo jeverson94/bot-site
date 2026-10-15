@@ -16,3 +16,10 @@ Composições, eventos, reviews de vídeo e placares dos jogos ficam no `localSt
 ## Rotas
 
 As rotas dinâmicas (`/builds/<id>`, `/batalhas/<id>`, `/clipes/<id>`, `/composicoes/ver/`) e os redirecionamentos estão no `.htaccess`.
+
+## Painel (/painel/)
+
+Barra lateral em `assets/js/painel.js`. Perfil, Builds (lista e oficina), Guildas, Presença, Maestria e Configurações.
+As builds da oficina ficam no `localStorage` (`emp_builds_v1`, ver `assets/js/minhasbuilds.js`) no mesmo formato de
+equipamento da biblioteca pública, mais as habilidades escolhidas em `sp`. O link `/builds/ver/#...` abre a build na
+página de detalhe. O tooltip das habilidades está em `assets/js/habilidades.js`.

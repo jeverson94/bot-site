@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015e">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015e">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Perfil</h1><p class="subtitle" style="margin:0">Sua conta do Discord, o personagem que você joga e um resumo do que está salvo neste navegador.</p></div></div>
+    <div class="grid2">
+      <div class="card" id="conta"><div class="state"><span class="spin"></span>Verificando login...</div></div>
+      <div class="card">
+        <h2>Seu personagem</h2>
+        <div id="char"></div>
+        <div class="pick-wrap" style="margin-top:10px"><input class="input" id="q-char" placeholder="Buscar personagem pelo nome" style="width:100%"><div id="o-char"></div></div>
+        <p class="muted small" style="margin:8px 0 0">Busca no servidor escolhido nas páginas de batalhas (<span id="reg"></span>).</p>
+      </div>
+    </div>
+    <div class="section"><h2>Salvo neste navegador</h2><div class="stats" id="local"></div></div>
+    <div class="section"><h2>Atalhos</h2><div class="feature-grid">
+      <a class="feature-card" href="/painel/builds/oficina/?new=1"><h3>Nova build</h3><p>Itens, tier, habilidades e swaps.</p></a>
+      <a class="feature-card" href="/criar-evento/"><h3>Criar evento</h3><p>Anúncio da call com horário local.</p></a>
+      <a class="feature-card" href="/composicoes/"><h3>Composições</h3><p>Monte a comp party por party.</p></a>
+      <a class="feature-card" href="/painel/presenca/"><h3>Presença</h3><p>Quem da guilda apareceu nas batalhas.</p></a>
+    </div></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015e"></script>
+<script src="/assets/js/auth.js?v=20261015e"></script>
+<script src="/assets/js/common.js?v=20261015e"></script>
+<script src="/assets/js/shell.js?v=20261015e"></script>
+<script src="/assets/js/painel.js?v=20261015e"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015e"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+$("reg").textContent = (Emp.REGIONS.find(function (r) { return r.id === Emp.getRegion(); }) || {}).label;
+window.EmporioAuth.me().then(function (u) {
+  if (!u) { $("conta").innerHTML = '<h2>Conta</h2><p class="muted">Você não está logado. O painel funciona sem conta; o login serve para avaliar builds e ver as guildas do bot.</p><a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a>'; return; }
+  const name = u.global_name || u.username || "Jogador";
+  const av = u.id && u.avatar ? '<img src="https://cdn.discordapp.com/avatars/' + encodeURIComponent(u.id) + "/" + encodeURIComponent(u.avatar) + '.png?size=96" alt="" style="width:56px;height:56px;border-radius:50%">' : "";
+  $("conta").innerHTML = '<h2>Conta</h2><div class="row">' + av + "<div><b style=\"font-size:17px\">" + Emp.esc(name) + '</b><div class="muted small">Conectado pelo Discord</div></div></div>';
+});
+function drawChar() {
+  const c = P.getLink("personagem");
+  if (!c) { $("char").innerHTML = '<p class="muted">Nenhum personagem ligado. Ligar o personagem preenche a página Maestria automaticamente.</p>'; return; }
+  $("char").innerHTML = Emp.loading("Buscando " + c.n + "...");
+  Emp.albion("player", { s: c.s, id: c.id }).then(function (d) {
+    const p = d.player;
+    $("char").innerHTML = '<div class="row between"><div><b style="font-size:17px">' + Emp.esc(p.Name) + '</b><div class="muted small">' + Emp.esc(p.GuildName || "Sem guilda") + (p.AllianceName ? " [" + Emp.esc(p.AllianceName) + "]" : "") + '</div></div><button class="btn secondary" id="unlink" style="padding:5px 10px;font-size:12px">Desligar</button></div>' +
+      '<div class="stats" style="margin-top:12px"><div class="stat"><b>' + Emp.num(p.KillFame) + '</b><span>Fama de abate</span></div><div class="stat"><b>' + Emp.num(p.DeathFame) + '</b><span>Fama de morte</span></div><div class="stat"><b>' + Emp.num(((p.LifetimeStatistics || {}).PvE || {}).Total) + '</b><span>Fama PvE</span></div></div>' +
+      '<a class="small" href="/painel/maestria/">Ver armas e mortes recentes</a>';
+    $("unlink").onclick = function () { P.setLink("personagem", null); drawChar(); };
+  }).catch(function (e) { $("char").innerHTML = '<p class="muted">' + Emp.esc(e.message) + "</p>"; });
+}
+P.picker($("q-char"), $("o-char"), "players", function (x) { P.setLink("personagem", { id: x.id, n: x.n, s: Emp.getRegion() }); $("q-char").value = ""; drawChar(); });
+drawChar();
+function count(k) { try { return JSON.parse(localStorage.getItem(k) || "[]").length; } catch (e) { return 0; } }
+let vods = 0; try { for (let i = 0; i < localStorage.length; i++) if (localStorage.key(i).indexOf("emp_vod_") === 0) vods++; } catch (e) {}
+$("local").innerHTML = [["emp_builds_v1", "Builds", "/painel/builds/"], ["emp_comps", "Composições", "/composicoes/"], ["emp_eventos", "Eventos", "/eventos/"]].map(function (x) {
+  return '<a class="stat" href="' + x[2] + '" style="color:inherit"><b>' + count(x[0]) + "</b><span>" + x[1] + "</span></a>";
+}).join("") + '<a class="stat" href="/vod-review/" style="color:inherit"><b>' + vods + "</b><span>Reviews de VOD</span></a>";
+
+</script>
+</body>
+</html>

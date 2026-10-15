@@ -1,0 +1,33 @@
+/* Painel: barra lateral + área de conteúdo */
+.painel { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 70px); }
+.painel-side { border-right: 1px solid var(--card-border); padding: 22px 16px; position: sticky; top: 70px; height: calc(100vh - 70px); overflow-y: auto; }
+.painel-side h2 { font-size: 22px; margin: 4px 8px 16px; }
+.painel-side .side-search { width: 100%; margin-bottom: 14px; }
+.painel-side .grp { margin-top: 16px; }
+.painel-side .grp-h { display: flex; justify-content: space-between; align-items: center; color: var(--text-dim); font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; padding: 6px 10px; cursor: pointer; user-select: none; }
+.painel-side .grp-h::after { content: "▴"; font-size: 10px; }
+.painel-side .grp.closed .grp-h::after { content: "▾"; }
+.painel-side .grp.closed .links { display: none; }
+.painel-side a.lnk { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 14px; padding: 9px 10px; border-radius: 9px; }
+.painel-side a.lnk:hover { color: var(--text); background: rgba(255,255,255,.04); text-decoration: none; }
+.painel-side a.lnk.on { color: var(--text); background: var(--gold-soft); font-weight: 600; }
+.painel-side a.lnk svg { width: 17px; height: 17px; flex-shrink: 0; opacity: .8; }
+.painel-side a.lnk.on svg { color: var(--gold); opacity: 1; }
+.painel-main { padding: 34px 40px 80px; min-width: 0; }
+.painel-main.wide { padding: 18px 20px 40px; }
+.painel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.painel-head h1 { font-size: 32px; margin: 0 0 6px; }
+.side-toggle { display: none; }
+@media (max-width: 900px) {
+  .painel { grid-template-columns: 1fr; }
+  .painel-side { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--card-border); }
+  .painel-side .side-body { display: none; }
+  .painel-side.open .side-body { display: block; }
+  .side-toggle { display: inline-flex; }
+  .painel-main { padding: 22px 16px 60px; }
+}
+.pick-wrap { position: relative; }
+.pick-opts { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; margin-top: 4px; z-index: 20; max-height: 280px; overflow-y: auto; display: none; box-shadow: var(--shadow); }
+.pick-opts.open { display: block; }
+.pick-opts div { padding: 9px 12px; cursor: pointer; font-size: 13.5px; }
+.pick-opts div:hover { background: var(--gold-soft); }
