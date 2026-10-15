@@ -279,8 +279,12 @@ def render(z, cl):
     lx = np.abs(xx / sc - half)
     ly = np.abs(yy / sc - half)
     edge = np.clip((np.maximum(lx, ly) - lim) / 40.0, 0, 1)
-    img *= (1 - 0.55 * edge)[..., None]
-    out = Image.fromarray(np.clip(img * 255, 0, 255).astype(np.uint8))
+    img *= (1 - 0.2 * edge)[..., None]
+    # A borda da zona some aos poucos para se misturar com o mapa-múndi.
+    fadeo = np.clip((np.maximum(lx, ly) - lim + 18 * noise) / max(20.0, half - lim), 0, 1)
+    alpha = 1 - 0.95 * fadeo ** 1.3
+    rgba = np.dstack([np.clip(img, 0, 1), alpha])
+    out = Image.fromarray((rgba * 255).astype(np.uint8), 'RGBA')
     return out.resize((RES, RES), Image.LANCZOS)
 
 
@@ -315,10 +319,10 @@ def main():
         return
     cols = 21
     rows = math.ceil(len(mapa['z']) / cols)
-    atlas = Image.new('RGB', (cols * THUMB, rows * THUMB), (0, 0, 0))
+    atlas = Image.new('RGBA', (cols * THUMB, rows * THUMB), (0, 0, 0, 0))
     for i, t in thumbs:
         if t is not None:
-            atlas.paste(t, ((i % cols) * THUMB, (i // cols) * THUMB))
+            atlas.paste(t, ((i % cols) * THUMB, (i // cols) * THUMB), t)
     atlas.save(os.path.join(OUTDIR, 'atlas.webp'), 'WEBP', quality=70, method=6)
     print('ok', len(thumbs))
 

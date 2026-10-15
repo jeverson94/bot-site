@@ -265,8 +265,51 @@ function path(poly) {
   poly.forEach(function (p, i) { if (i) ctx.lineTo(sx(p[0]), sy(p[1])); else ctx.moveTo(sx(p[0]), sy(p[1])); });
   ctx.closePath();
 }
+// Fundo do mapa-múndi gerado a partir das zonas: imagem geral de longe, blocos com zoom.
+const WORLD = { meta: null, geral: null, t: {} };
+fetch("/assets/img/mundo/mundo.json?v=1").then(function (r) { return r.json(); }).then(function (m) {
+  WORLD.meta = m; WORLD.has = new Set(m.tiles.map(function (t) { return t[0] + "_" + t[1]; }));
+  const g = new Image(); g.onload = function () { WORLD.geral = g; dirty = true; }; g.src = "/assets/img/mundo/geral.webp?v=1";
+}).catch(function () {});
+function worldTile(key) {
+  let t = WORLD.t[key];
+  if (!t) { t = WORLD.t[key] = new Image(); t.onload = function () { t._ok = true; dirty = true; }; t.src = "/assets/img/mundo/t_" + key + ".webp?v=1"; }
+  return t._ok ? t : null;
+}
+function drawWorld() {
+  const m = WORLD.meta;
+  if (!m || !WORLD.geral) return;
+  const x = sx(m.x0), y = sy(m.y0), w = m.w / m.px * view.k, h = m.h / m.px * view.k;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(WORLD.geral, x, y, w, h);
+  if (view.k < 1.6) return;
+  const ts = m.tile / m.px * view.k;
+  const c0 = Math.max(0, Math.floor(-x / ts)), c1 = Math.min(m.w / m.tile - 1, Math.floor((W - x) / ts));
+  const r0 = Math.max(0, Math.floor(-y / ts)), r1 = Math.min(m.h / m.tile - 1, Math.floor((H - y) / ts));
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    const key = c + "_" + r;
+    if (!WORLD.has.has(key)) continue;
+    const t = worldTile(key);
+    if (t) ctx.drawImage(t, x + c * ts, y + r * ts, ts + .5, ts + .5);
+  }
+}
+function drawRegions(zp) {
+  if (zp > 40 || !D) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, (40 - zp) / 14)) * .85;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const fs = Math.max(13, Math.min(26, zp * 1.1));
+  ctx.font = "600 " + fs + "px Georgia, 'Times New Roman', serif";
+  ctx.fillStyle = "#f3e2b4"; ctx.strokeStyle = "rgba(20,14,6,.7)"; ctx.lineWidth = 3;
+  REGIONS.forEach(function (r) {
+    const t = r.n.split("").join(String.fromCharCode(8202));
+    ctx.strokeText(t, sx(r.x), sy(r.y)); ctx.fillText(t, sx(r.x), sy(r.y));
+  });
+  ctx.restore();
+}
+let REGIONS = [];
 // Minimapas gerados dos arquivos do jogo: atlas na visão geral, imagem de cada zona com zoom.
-const MINI = { v: 1, atlas: null, img: {}, cols: 21, cell: 96, res: 512 };
+const MINI = { v: 2, atlas: null, img: {}, cols: 21, cell: 96, res: 512 };
 (function () {
   const a = new Image();
   a.onload = function () { MINI.atlas = a; dirty = true; };
@@ -315,12 +358,7 @@ function draw() {
   if (!D) return;
   const zp = zoneSize();
 
-  // Litoral: zonas ampliadas e desfocadas formam as ilhas.
-  ctx.save();
-  ctx.filter = "blur(" + Math.max(4, Math.min(28, zp * .35)) + "px)";
-  ctx.fillStyle = "rgba(46,84,100,.85)";
-  Z.forEach(function (z) { path(z._c2); ctx.fill(); });
-  ctx.restore();
+  drawWorld();
 
   // Conexões entre zonas.
   if (L.links || L.portals) {
@@ -329,7 +367,7 @@ function draw() {
       const portal = e[2] === 1;
       if ((portal && !L.portals) || (!portal && !L.links)) return;
       const a = Z[e[0]], b = Z[e[1]];
-      ctx.strokeStyle = portal ? "rgba(180,142,240,.55)" : "rgba(226,188,98,.16)";
+      ctx.strokeStyle = portal ? "rgba(180,142,240,.55)" : "rgba(28,22,12,.42)";
       ctx.setLineDash(portal ? [6, 6] : []);
       ctx.beginPath(); ctx.moveTo(sx(a._w[0]), sy(a._w[1])); ctx.lineTo(sx(b._w[0]), sy(b._w[1])); ctx.stroke();
     });
@@ -337,15 +375,27 @@ function draw() {
   }
 
   // Zonas.
+  // De longe mostra só um ponto por zona sobre o mapa-múndi; os losangos aparecem com o zoom.
+  const fade = Math.max(0, Math.min(1, (zp - 34) / 40));
   Z.forEach(function (z, i) {
     const ok = passes(z);
+    if (fade < 1) {
+      const cx = sx(z._w[0]), cy = sy(z._w[1]), r = Math.max(3.5, Math.min(8, zp * .26));
+      ctx.globalAlpha = (1 - fade) * (ok ? 1 : .25);
+      ctx.beginPath(); ctx.arc(cx, cy, r + 1.5, 0, Math.PI * 2); ctx.fillStyle = "rgba(10,12,16,.75)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = z.k === "city" ? "#f2efe6" : z.k === "black" ? "#2a2e36" : KIND[z.k].c; ctx.fill();
+      ctx.lineWidth = hover === i ? 2.5 : 1.2; ctx.strokeStyle = hover === i ? "#ffffff" : z.k === "black" ? "#9aa0ab" : "rgba(0,0,0,.55)"; ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (fade === 0) return;
+    }
     path(z._c);
     const bio = BIOME[z.b] || BIOME.MN;
     const c0 = z._c[0], c2 = z._c[2];
     const gr = ctx.createLinearGradient(sx(c0[0]), sy(c0[1]), sx(c2[0]), sy(c2[1]));
     gr.addColorStop(0, z.k === "city" ? "#5a4a26" : bio.c);
     gr.addColorStop(1, z.k === "city" ? "#3d3220" : bio.d);
-    ctx.globalAlpha = ok ? 1 : .22;
+    ctx.globalAlpha = fade * (ok ? 1 : .22);
     if (!drawMini(z, i, zp)) {
       ctx.fillStyle = gr; ctx.fill();
       if (zp > 24 && TEX[z.k === "city" ? "city" : z.b]) { ctx.fillStyle = TEX[z.k === "city" ? "city" : z.b]; ctx.fill(); }
@@ -353,9 +403,12 @@ function draw() {
     path(z._c);
     ctx.lineWidth = Math.min(hover === i ? 4 : 2, Math.max(1, zp * (hover === i ? .045 : .014)));
     ctx.strokeStyle = hover === i ? "#ffffff" : KIND[z.k].c;
+    if (hover !== i) ctx.globalAlpha *= .55;
     ctx.stroke();
     ctx.globalAlpha = 1;
   });
+
+  drawRegions(zp);
 
   // Rota.
   if (route) {
@@ -674,6 +727,12 @@ fetch("/assets/data/mapa.json?v=3").then(function (r) { return r.json(); }).then
   const a = d.rot * Math.PI / 180; COS = Math.cos(a); SIN = Math.sin(a);
   adj = Z.map(function () { return []; });
   d.g.forEach(function (e) { adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); });
+  // Nome dos continentes no centro de cada um.
+  REGIONS = [["CONTINENTE REAL", function (z) { return z.k !== "black" && z.y < -100; }], ["OUTLANDS", function (z) { return z.k === "black" && z.y > 0; }]].map(function (r) {
+    const L2 = d.z.filter(r[1]); let x = 0, y0 = 1e9, y1 = -1e9;
+    L2.forEach(function (z) { x += z.x; y0 = Math.min(y0, -z.y); y1 = Math.max(y1, -z.y); });
+    return { n: r[0], x: x / Math.max(1, L2.length), y: r[0] === "OUTLANDS" ? y0 + (y1 - y0) * .5 : y0 + (y1 - y0) * .3 };
+  });
   Z.forEach(function (z, i) { z._w = [z.x, -z.y]; z._c = corners(z, 0); z._c2 = corners(z, z.s * .28); byName[z.n.toLowerCase()] = i; });
   suggest("from", "o-from", function (i) { document.getElementById("from").value = Z[i].n; pick = 1; doRoute(true); });
   suggest("to", "o-to", function (i) { document.getElementById("to").value = Z[i].n; pick = 0; doRoute(true); });
