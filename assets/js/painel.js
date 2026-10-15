@@ -11,6 +11,9 @@
     chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
     users: '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 4a3 3 0 0 1 0 6M18 20a6 6 0 0 0-3-5"/>',
     medal: '<circle cx="12" cy="14" r="6"/><path d="M9 3h6l-1.5 5h-3zM12 11v6M9.5 14h5"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    coins: '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7M3 12v5c0 1.7 2.7 3 6 3 1.3 0 2.5-.2 3.5-.6"/><ellipse cx="17" cy="15" rx="4" ry="2"/><path d="M13 15v3c0 1.1 1.8 2 4 2s4-.9 4-2v-3"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   };
   const SIDE = [
@@ -22,7 +25,13 @@
       { href: "/vod-review/", label: "Análises de VOD", ic: "vod" },
       { href: "/disarray/", label: "Disarray", ic: "chart" },
     ]},
-    { label: "Guilda", items: [{ href: "/painel/guildas/", label: "Guildas", ic: "users" }] },
+    { label: "Guilda", items: [
+      { href: "/painel/guildas/", label: "Guildas", ic: "users" },
+      { href: "/painel/guildas/membros/", label: "Membros", ic: "list" },
+      { href: "/painel/guildas/batalhas/", label: "Batalhas", ic: "swords" },
+      { href: "/painel/guildas/regears/", label: "Regears", ic: "shield" },
+      { href: "/painel/guildas/saldo/", label: "Saldo", ic: "coins" },
+    ]},
     { label: "Estatísticas", items: [
       { href: "/painel/presenca/", label: "Presença", ic: "chart" },
       { href: "/painel/maestria/", label: "Maestria", ic: "medal" },
@@ -37,9 +46,64 @@
   function closedGroups() { try { return JSON.parse(localStorage.getItem("emp_painel_fechados") || "[]"); } catch (e) { return []; } }
   function setClosed(list) { try { localStorage.setItem("emp_painel_fechados", JSON.stringify(list)); } catch (e) {} }
 
+  function allLinks() { return SIDE.reduce(function (a, g) { return a.concat(g.items); }, []); }
+  // Link da barra que corresponde a um endereço (o prefixo mais longo).
+  function activeFor(path) {
+    let best = null;
+    allLinks().forEach(function (i) {
+      if (path.indexOf(i.href) === 0 && (!best || i.href.length > best.length)) best = i.href;
+    });
+    if (!best && path.indexOf("/criar-evento/") === 0) best = "/eventos/";
+    if (!best && path.indexOf("/builds/ver/") === 0) best = "/painel/builds/";
+    return best;
+  }
+  function setActive(path) {
+    const href = activeFor(path);
+    document.querySelectorAll("#painel-side a.lnk").forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === href); });
+  }
+
+  // Troca só o conteúdo da direita: a página escolhida abre num iframe sem
+  // topo nem barra lateral, e a barra de endereço acompanha.
+  let frame = null;
+  function fitFrame() {
+    if (!frame) return;
+    const top = frame.getBoundingClientRect().top + window.scrollY;
+    frame.style.height = Math.max(400, window.innerHeight - top) + "px";
+  }
+  function go(url, push) {
+    const main = document.querySelector(".painel-main");
+    if (!main) { location.href = url; return; }
+    if (!frame) {
+      main.innerHTML = "";
+      main.classList.add("framed");
+      frame = document.createElement("iframe");
+      frame.className = "painel-frame";
+      frame.title = "Conteúdo do painel";
+      main.appendChild(frame);
+      window.addEventListener("resize", fitFrame);
+    }
+    frame.src = url;
+    if (push) history.pushState({ painel: url }, "", url);
+    setActive(new URL(url, location.href).pathname);
+    window.scrollTo(0, 0);
+    fitFrame();
+    const side = document.getElementById("painel-side");
+    if (side) side.classList.remove("open");
+  }
+  window.addEventListener("message", function (e) {
+    if (e.origin !== location.origin || !e.data || e.data.type !== "emp-nav" || !frame || e.source !== frame.contentWindow) return;
+    if (e.data.url !== location.pathname + location.search + location.hash) history.replaceState({ painel: e.data.url }, "", e.data.url);
+    if (e.data.title) document.title = e.data.title;
+    setActive(new URL(e.data.url, location.href).pathname);
+  });
+  window.addEventListener("popstate", function () {
+    if (document.getElementById("painel-side")) go(location.pathname + location.search + location.hash, false);
+  });
+
   function render(active) {
     const el = document.getElementById("painel-side");
     if (!el) return;
+    if (window.EmporioShell && window.EmporioShell.EMBED) return;
     const closed = closedGroups();
     el.innerHTML =
       '<div class="row between"><h2>Painel</h2><button class="btn secondary side-toggle" id="side-toggle" style="padding:6px 12px">Menu</button></div>' +
@@ -64,6 +128,12 @@
       if (q) el.querySelectorAll(".grp").forEach(function (g) { g.classList.remove("closed"); });
     });
     document.getElementById("side-toggle").addEventListener("click", function () { el.classList.toggle("open"); });
+    el.addEventListener("click", function (e) {
+      const a = e.target.closest("a.lnk");
+      if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      go(a.getAttribute("href"), true);
+    });
   }
 
   // Busca de guilda ou jogador na API do Albion, com lista de sugestões.
@@ -101,5 +171,48 @@
   function getLink(k) { try { return JSON.parse(localStorage.getItem("emp_" + k) || "null"); } catch (e) { return null; } }
   function setLink(k, v) { try { if (v) localStorage.setItem("emp_" + k, JSON.stringify(v)); else localStorage.removeItem("emp_" + k); } catch (e) {} }
 
-  window.EmporioPainel = { render: render, picker: picker, getLink: getLink, setLink: setLink };
+  // Barra "Guilda: X [trocar]" usada nas páginas da seção Guilda.
+  // onGuild(G) é chamado com {id, n, s} quando há guilda escolhida.
+  function guildBar(el, onGuild) {
+    function draw() {
+      const G = getLink("guilda");
+      el.innerHTML = '<div class="card row between wrap" style="padding:12px 16px;margin-bottom:18px"><div class="row" style="gap:10px"><span class="muted small">Guilda</span><b style="font-size:16px">' +
+        (G ? Emp.esc(G.n) : "nenhuma escolhida") + "</b>" + (G ? '<span class="badge">' + Emp.esc((Emp.REGIONS.find(function (r) { return r.id === G.s; }) || {}).label || "") + "</span>" : "") +
+        '</div><div class="pick-wrap" style="min-width:260px"><input class="input" id="gb-q" placeholder="' + (G ? "Trocar de guilda" : "Buscar a guilda pelo nome") + '" style="width:100%"><div id="gb-o"></div></div></div>';
+      picker(document.getElementById("gb-q"), document.getElementById("gb-o"), "guilds", function (x) {
+        setLink("guilda", { id: x.id, n: x.n, s: Emp.getRegion() });
+        draw();
+      });
+      onGuild(G);
+    }
+    draw();
+  }
+
+  // Batalhas recentes da guilda (até pages x 50), guardadas por alguns minutos.
+  const battleCache = {};
+  async function guildBattles(G, pages) {
+    const key = G.s + G.id + pages;
+    if (battleCache[key] && Date.now() - battleCache[key].t < 300000) return battleCache[key].v;
+    const out = [];
+    for (let i = 0; i < pages; i++) {
+      const page = await Emp.albion("battles", { s: G.s, guildId: G.id, offset: i * 50, limit: 50 });
+      page.forEach(function (b) { out.push(b); });
+      if (page.length < 50) break;
+    }
+    battleCache[key] = { t: Date.now(), v: out };
+    return out;
+  }
+
+  // Lado da guilda numa batalha: jogadores, abates, mortes e fama.
+  function guildSide(b, gid) {
+    const s = { p: 0, k: 0, d: 0, f: 0, tot: 0 };
+    Object.values(b.players || {}).forEach(function (p) {
+      s.tot++;
+      if (p.guildId !== gid) return;
+      s.p++; s.k += p.kills; s.d += p.deaths; s.f += p.killFame;
+    });
+    return s;
+  }
+
+  window.EmporioPainel = { render: render, picker: picker, getLink: getLink, setLink: setLink, guildBar: guildBar, guildBattles: guildBattles, guildSide: guildSide };
 })();

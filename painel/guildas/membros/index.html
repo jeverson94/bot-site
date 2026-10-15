@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Membros | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015f">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Membros</h1><p class="subtitle" style="margin:0">Todos os membros da guilda no jogo, com fama e participação nas últimas 100 batalhas da guilda.</p></div></div>
+    <div id="gbar"></div>
+    <div class="toolbar"><input class="input" id="q" placeholder="Buscar membro" style="max-width:260px"><span class="muted small" id="cnt"></span></div>
+    <div class="table-wrap"><table class="table"><thead><tr>
+      <th data-s="n" style="cursor:pointer">Membro</th><th class="num" data-s="kf" style="cursor:pointer">Fama de abate</th><th class="num" data-s="df" style="cursor:pointer">Fama de morte</th>
+      <th class="num" data-s="r" style="cursor:pointer">Razão</th><th class="num" data-s="pve" style="cursor:pointer">Fama PvE</th><th class="num" data-s="b" style="cursor:pointer">Batalhas</th><th data-s="last" style="cursor:pointer">Última batalha</th>
+    </tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="state"></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015f"></script>
+<script src="/assets/js/auth.js?v=20261015f"></script>
+<script src="/assets/js/common.js?v=20261015f"></script>
+<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/painel.js?v=20261015f"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015f"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/membros/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+let M = [], sortK = "kf", dir = -1;
+function draw() {
+  const q = $("q").value.trim().toLowerCase();
+  const list = M.filter(function (m) { return !q || m.n.toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) {
+    const x = a[sortK], y = b[sortK];
+    if (typeof x === "string" || typeof y === "string") return dir * String(x || "").localeCompare(String(y || ""), "pt-BR");
+    return dir * ((x || 0) - (y || 0));
+  });
+  $("cnt").textContent = list.length + " de " + M.length + " membros";
+  $("rows").innerHTML = list.map(function (m) {
+    return "<tr><td><b>" + Emp.esc(m.n) + '</b></td><td class="num">' + Emp.num(m.kf) + '</td><td class="num">' + Emp.num(m.df) + '</td><td class="num ' + (m.r >= 1 ? "good" : "bad") + '">' + m.r.toFixed(2).replace(".", ",") +
+      '</td><td class="num">' + Emp.num(m.pve) + '</td><td class="num">' + m.b + '</td><td class="muted small">' + (m.last ? Emp.ago(m.last) : "sem registro") + "</td></tr>";
+  }).join("");
+}
+document.querySelector("thead").addEventListener("click", function (e) {
+  const th = e.target.closest("[data-s]"); if (!th) return;
+  if (sortK === th.dataset.s) dir = -dir; else { sortK = th.dataset.s; dir = th.dataset.s === "n" ? 1 : -1; }
+  draw();
+});
+$("q").addEventListener("input", draw);
+P.guildBar($("gbar"), async function (G) {
+  M = []; $("rows").innerHTML = "";
+  if (!G) { $("state").innerHTML = Emp.emptyState("Escolha a guilda na barra acima."); return; }
+  $("state").innerHTML = Emp.loading("Buscando os membros...");
+  try {
+    const r = await Promise.all([Emp.albion("members", { s: G.s, id: G.id }), P.guildBattles(G, 2).catch(function () { return []; })]);
+    const seen = {};
+    r[1].forEach(function (b) {
+      Object.entries(b.players || {}).forEach(function (e) {
+        if (e[1].guildId !== G.id) return;
+        const o = seen[e[0]] || (seen[e[0]] = { b: 0, last: null });
+        o.b++; if (!o.last || b.startTime > o.last) o.last = b.startTime;
+      });
+    });
+    M = r[0].map(function (m) { const s = seen[m.id] || { b: 0, last: null }; return Object.assign({}, m, { r: m.kf / Math.max(1, m.df), b: s.b, last: s.last }); });
+    $("state").innerHTML = "";
+    draw();
+  } catch (e) { $("state").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+});
+
+</script>
+</body>
+</html>

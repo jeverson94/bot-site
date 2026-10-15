@@ -59,3 +59,9 @@ img { max-width: 100%; }
 .subtitle { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
 
 .footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 40px 20px; }
+
+/* Página aberta dentro do painel (iframe) */
+html.embed #topbar-root, html.embed #footer-root, html.embed .site-footer, html.embed body > .footer, html.embed .painel-side { display: none !important; }
+html.embed .painel { grid-template-columns: 1fr; min-height: 0; }
+html.embed body { background: var(--bg); }
+html.embed .page-wrap { padding-top: 26px; }

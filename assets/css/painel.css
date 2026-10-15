@@ -31,3 +31,5 @@
 .pick-opts.open { display: block; }
 .pick-opts div { padding: 9px 12px; cursor: pointer; font-size: 13.5px; }
 .pick-opts div:hover { background: var(--gold-soft); }
+.painel-main.framed { padding: 0; }
+.painel-frame { display: block; width: 100%; border: 0; background: var(--bg); }

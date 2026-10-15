@@ -79,7 +79,31 @@
 
   function norm(p) { return p.endsWith("/") ? p : p + "/"; }
 
+  // Páginas abertas dentro do painel (iframe): sem topo e sem rodapé. Links
+  // para fora do painel abrem na janela de cima; a URL e o título da página
+  // são avisados ao painel para ele atualizar a barra de endereço.
+  const EMBED = window.self !== window.top;
+  const DASH = ["/painel/", "/eventos/", "/criar-evento/", "/composicoes/", "/vod-review/", "/disarray/", "/builds/ver/"];
+  function inDash(path) { return DASH.some(function (p) { return path.indexOf(p) === 0; }); }
+  function setupEmbed() {
+    document.documentElement.classList.add("embed");
+    function notify() {
+      try { window.parent.postMessage({ type: "emp-nav", url: location.pathname + location.search + location.hash, title: document.title }, location.origin); } catch (e) {}
+    }
+    window.addEventListener("load", notify);
+    window.addEventListener("hashchange", notify);
+    setTimeout(notify, 0);
+    document.addEventListener("click", function (e) {
+      const a = e.target.closest("a[href]");
+      if (!a || a.target === "_blank" || e.ctrlKey || e.metaKey) return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin) { e.preventDefault(); window.top.location.href = a.href; return; }
+      if (!inDash(url.pathname)) { e.preventDefault(); window.top.location.href = url.href; }
+    });
+  }
+
   function renderTopbar(activePath) {
+    if (EMBED) { setupEmbed(); return; }
     injectCss();
     const here = norm(activePath || window.location.pathname);
     const root = document.getElementById("topbar-root");
@@ -157,5 +181,5 @@
       '<span><a href="/termos/">Termos de uso</a><a href="/privacidade/">Privacidade</a></span></div></footer>';
   }
 
-  window.EmporioShell = { renderTopbar: renderTopbar, MENU: MENU };
+  window.EmporioShell = { renderTopbar: renderTopbar, MENU: MENU, EMBED: EMBED };
 })();

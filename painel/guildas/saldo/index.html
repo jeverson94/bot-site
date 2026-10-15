@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saldo | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015f">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Saldo</h1><p class="subtitle" style="margin:0">Livro-caixa da guilda: divisão de loot, regears, pagamentos e o saldo de cada membro. Fica salvo neste navegador; use Exportar para passar para outro oficial.</p></div></div>
+    <div id="gbar"></div>
+    <div class="grid2">
+      <div class="card"><h2>Lançamento</h2>
+        <div class="grid2"><label class="field">Jogador<input class="input" id="p" list="mem" placeholder="Nome no jogo"></label><label class="field">Valor (prata)<input class="input" id="v" type="number" min="0" placeholder="Ex.: 1500000"></label></div>
+        <div class="grid2" style="margin-top:10px"><label class="field">Tipo<select class="select" id="tp"><option value="1">Crédito (a guilda deve)</option><option value="-1">Débito (pago ou devido à guilda)</option></select></label><label class="field">Motivo<input class="input" id="m" placeholder="Ex.: pagamento do regear"></label></div>
+        <button class="btn" id="add" style="margin-top:12px">Lançar</button></div>
+      <div class="card"><h2>Divisão de loot</h2>
+        <div class="grid2"><label class="field">Valor total do loot<input class="input" id="lt" type="number" min="0" placeholder="Ex.: 50000000"></label><label class="field">Taxa da guilda (%)<input class="input" id="tx" type="number" min="0" max="100" value="10"></label></div>
+        <label class="field" style="margin-top:10px">Participantes (um por linha)<textarea class="input" id="pp" rows="4" placeholder="Nomes dos jogadores"></textarea></label>
+        <div class="row wrap" style="margin-top:10px"><select class="select" id="fromb" style="max-width:280px"><option value="">Puxar participantes de uma batalha</option></select><button class="btn" id="split">Dividir e lançar</button></div>
+        <p class="muted small" id="smsg" style="margin:8px 0 0"></p></div>
+    </div>
+    <datalist id="mem"></datalist>
+    <div class="section"><div class="row between wrap"><h2>Saldos</h2><div class="row"><input class="input" id="fq" placeholder="Filtrar jogador" style="max-width:200px"><button class="btn secondary" id="exp">Exportar</button><label class="btn secondary" style="cursor:pointer">Importar<input type="file" id="imp" accept="application/json" hidden></label></div></div>
+      <div class="stats" id="sum" style="margin:12px 0"></div>
+      <div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th class="num">Saldo</th><th class="num">Lançamentos</th><th></th></tr></thead><tbody id="bal"></tbody></table></div></div>
+    <div class="section"><h2>Histórico <span class="muted small" id="hf"></span></h2>
+      <div class="table-wrap"><table class="table"><thead><tr><th>Quando</th><th>Jogador</th><th>Motivo</th><th class="num">Valor</th><th></th></tr></thead><tbody id="hist"></tbody></table></div></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015f"></script>
+<script src="/assets/js/auth.js?v=20261015f"></script>
+<script src="/assets/js/common.js?v=20261015f"></script>
+<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/painel.js?v=20261015f"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015f"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/saldo/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+let G = null, L = [], only = "";
+function key() { return "emp_saldo_" + G.id; }
+function load() { try { L = JSON.parse(localStorage.getItem(key()) || "[]"); } catch (e) { L = []; } }
+function save() { try { localStorage.setItem(key(), JSON.stringify(L)); } catch (e) {} draw(); }
+function add(p, v, m) { L.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), t: Date.now(), p: p, v: v, m: m }); }
+function draw() {
+  const by = {};
+  L.forEach(function (e) { const o = by[e.p] || (by[e.p] = { p: e.p, s: 0, n: 0 }); o.s += e.v; o.n++; });
+  const q = $("fq").value.trim().toLowerCase();
+  const rows = Object.values(by).filter(function (o) { return !q || o.p.toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) { return b.s - a.s; });
+  const owed = Object.values(by).reduce(function (s, o) { return s + Math.max(0, o.s); }, 0);
+  $("sum").innerHTML = '<div class="stat"><b>' + Object.keys(by).length + '</b><span>Jogadores</span></div><div class="stat"><b>' + Emp.num(owed) + '</b><span>A guilda deve</span></div><div class="stat"><b>' + L.length + "</b><span>Lançamentos</span></div>";
+  $("bal").innerHTML = rows.map(function (o) {
+    return "<tr><td><b>" + Emp.esc(o.p) + '</b></td><td class="num ' + (o.s > 0 ? "good" : o.s < 0 ? "bad" : "") + '">' + Emp.int(o.s) + '</td><td class="num">' + o.n + '</td><td class="num small"><a href="#" data-only="' + Emp.esc(o.p) + '">histórico</a> · <a href="#" data-pay="' + Emp.esc(o.p) + '" data-v="' + o.s + '">zerar (pago)</a></td></tr>';
+  }).join("") || '<tr><td colspan="4" class="muted">Nenhum lançamento ainda.</td></tr>';
+  const hist = L.filter(function (e) { return !only || e.p === only; });
+  $("hf").innerHTML = only ? "de " + Emp.esc(only) + ' · <a href="#" data-only="">ver todos</a>' : "";
+  $("hist").innerHTML = hist.slice(0, 300).map(function (e) {
+    return '<tr><td class="muted small">' + new Date(e.t).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + "</td><td>" + Emp.esc(e.p) + '</td><td class="muted">' + Emp.esc(e.m || "") + '</td><td class="num ' + (e.v >= 0 ? "good" : "bad") + '">' + Emp.int(e.v) + '</td><td class="num"><a href="#" data-del="' + e.id + '" class="small">apagar</a></td></tr>';
+  }).join("") || '<tr><td colspan="5" class="muted">Nada aqui.</td></tr>';
+}
+$("add").onclick = function () {
+  const p = $("p").value.trim(), v = Math.round(parseFloat($("v").value) || 0);
+  if (!G || !p || !v) return;
+  add(p, v * parseInt($("tp").value, 10), $("m").value.trim()); $("v").value = ""; $("m").value = ""; save();
+};
+$("split").onclick = function () {
+  const total = parseFloat($("lt").value) || 0, tax = (parseFloat($("tx").value) || 0) / 100;
+  const names = $("pp").value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+  if (!G || !total || !names.length) { $("smsg").textContent = "Preencha o valor e os participantes."; return; }
+  const each = Math.floor(total * (1 - tax) / names.length);
+  names.forEach(function (n) { add(n, each, "Divisão de loot"); });
+  save(); $("smsg").textContent = names.length + " jogadores receberam " + Emp.int(each) + " cada. A guilda ficou com " + Emp.int(Math.round(total * tax)) + ".";
+};
+$("fromb").addEventListener("change", async function () {
+  if (!this.value) return;
+  const b = (await P.guildBattles(G, 2)).find(function (x) { return String(x.id) === $("fromb").value; });
+  if (b) $("pp").value = Object.values(b.players || {}).filter(function (p) { return p.guildId === G.id; }).map(function (p) { return p.name; }).join("\n");
+});
+document.addEventListener("click", function (e) {
+  const o = e.target.closest("[data-only]");
+  if (o) { e.preventDefault(); only = o.dataset.only; draw(); return; }
+  const d = e.target.closest("[data-del]");
+  if (d) { e.preventDefault(); if (confirm("Apagar esse lançamento?")) { L = L.filter(function (x) { return x.id !== d.dataset.del; }); save(); } return; }
+  const pay = e.target.closest("[data-pay]");
+  if (pay) { e.preventDefault(); const v = parseInt(pay.dataset.v, 10); if (v && confirm("Lançar o pagamento de " + Emp.int(v) + " para " + pay.dataset.pay + "?")) { add(pay.dataset.pay, -v, "Pagamento do saldo"); save(); } }
+});
+$("fq").addEventListener("input", draw);
+$("exp").onclick = function () {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ tipo: "emporio-saldo", guilda: G.n, lancamentos: L }, null, 1)], { type: "application/json" }));
+  a.download = "saldo-" + G.n.replace(/\W+/g, "-") + ".json"; a.click();
+};
+$("imp").onchange = function () {
+  const f = this.files[0]; if (!f || !G) return;
+  f.text().then(function (t) { const d = JSON.parse(t); const ids = {}; L.forEach(function (x) { ids[x.id] = 1; }); (d.lancamentos || []).forEach(function (x) { if (!ids[x.id]) L.push(x); }); L.sort(function (a, b) { return b.t - a.t; }); save(); }).catch(function () { alert("Arquivo inválido."); });
+  this.value = "";
+};
+P.guildBar($("gbar"), async function (g) {
+  G = g; only = "";
+  if (!G) { $("bal").innerHTML = '<tr><td colspan="4" class="muted">Escolha a guilda na barra acima.</td></tr>'; return; }
+  load(); draw();
+  Emp.albion("members", { s: G.s, id: G.id }).then(function (m) { $("mem").innerHTML = m.map(function (x) { return '<option value="' + Emp.esc(x.n) + '">'; }).join(""); }).catch(function () {});
+  P.guildBattles(G, 1).then(function (bs) {
+    $("fromb").innerHTML = '<option value="">Puxar participantes de uma batalha</option>' + bs.map(function (b) { const s = P.guildSide(b, G.id); return '<option value="' + b.id + '">' + Emp.dateTime(b.startTime) + " · " + s.p + " da guilda</option>"; }).join("");
+  }).catch(function () {});
+});
+
+</script>
+</body>
+</html>

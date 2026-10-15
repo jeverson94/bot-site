@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batalhas da guilda | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015f">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Batalhas da guilda</h1><p class="subtitle" style="margin:0">As últimas lutas em que a guilda participou. Vitória é quando a guilda matou mais do que morreu.</p></div></div>
+    <div id="gbar"></div>
+    <div class="stats" id="sum" style="margin-bottom:16px"></div>
+    <div class="toolbar"><select class="select" id="min"><option value="1">Todas</option><option value="10">10+ jogadores</option><option value="20">20+ jogadores</option><option value="50">50+ jogadores</option></select></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Quando</th><th>Contra</th><th class="num">Da guilda</th><th class="num">Total</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama</th><th>Resultado</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="state"></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015f"></script>
+<script src="/assets/js/auth.js?v=20261015f"></script>
+<script src="/assets/js/common.js?v=20261015f"></script>
+<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/painel.js?v=20261015f"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015f"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/batalhas/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+let B = [], G = null;
+function enemies(b) {
+  const c = {};
+  Object.values(b.players || {}).forEach(function (p) { if (p.guildId === G.id) return; const k = p.allianceName || p.guildName; if (k) c[k] = (c[k] || 0) + 1; });
+  return Object.keys(c).sort(function (a, x) { return c[x] - c[a]; }).slice(0, 2).join(", ");
+}
+function draw() {
+  const min = parseInt($("min").value, 10);
+  const list = B.filter(function (b) { return Object.keys(b.players || {}).length >= min; });
+  let w = 0, l = 0, k = 0, d = 0, f = 0;
+  const rows = list.map(function (b) {
+    const s = P.guildSide(b, G.id);
+    const win = s.k > s.d, draw2 = s.k === s.d;
+    if (win) w++; else if (!draw2) l++;
+    k += s.k; d += s.d; f += s.f;
+    return '<tr><td class="muted small">' + Emp.dateTime(b.startTime) + "<br>" + Emp.ago(b.startTime) + "</td><td>" + Emp.esc(enemies(b) || "Sem guilda") + '</td><td class="num">' + s.p + '</td><td class="num">' + s.tot + '</td><td class="num">' + s.k + '</td><td class="num">' + s.d + '</td><td class="num">' + Emp.num(s.f) +
+      '</td><td><span class="badge ' + (win ? "good" : draw2 ? "" : "bad") + '">' + (win ? "Vitória" : draw2 ? "Empate" : "Derrota") + '</span></td><td class="num small"><a href="/batalhas/' + b.id + "?s=" + G.s + '">Detalhes</a> · <a href="/painel/guildas/regears/?b=' + b.id + '">Regear</a></td></tr>';
+  });
+  $("sum").innerHTML = '<div class="stat"><b>' + list.length + '</b><span>Batalhas</span></div><div class="stat"><b class="good">' + w + '</b><span>Vitórias</span></div><div class="stat"><b class="bad">' + l + '</b><span>Derrotas</span></div><div class="stat"><b>' + k + " / " + d + '</b><span>Abates e mortes</span></div><div class="stat"><b>' + Emp.num(f) + "</b><span>Fama de abate</span></div>";
+  $("rows").innerHTML = rows.join("");
+  $("state").innerHTML = list.length ? "" : Emp.emptyState("Nenhuma batalha com esse filtro.");
+}
+$("min").addEventListener("change", draw);
+P.guildBar($("gbar"), async function (g) {
+  G = g; B = []; $("rows").innerHTML = ""; $("sum").innerHTML = "";
+  if (!G) { $("state").innerHTML = Emp.emptyState("Escolha a guilda na barra acima."); return; }
+  $("state").innerHTML = Emp.loading("Buscando as batalhas...");
+  try { B = await P.guildBattles(G, 2); draw(); } catch (e) { $("state").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+});
+
+</script>
+</body>
+</html>

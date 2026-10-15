@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regears | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261015f">
+
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+
+    <div class="painel-head"><div><h1>Regears</h1><p class="subtitle" style="margin:0">Escolha uma batalha e veja quem da guilda morreu, com o equipamento perdido e o valor estimado pelo mercado. Marque quem já foi pago e lance o regear no saldo.</p></div></div>
+    <div id="gbar"></div>
+    <div class="toolbar">
+      <select class="select" id="bat" style="min-width:320px"></select>
+      <label class="field" style="flex-direction:row;align-items:center;gap:8px">Repor <input class="input" id="pct" type="number" min="0" max="200" value="100" style="width:80px"> %</label>
+      <label class="row small muted"><input type="checkbox" id="mount" checked> Incluir montaria</label>
+      <label class="row small muted"><input type="checkbox" id="cons"> Incluir poção e comida</label>
+    </div>
+    <div class="stats" id="sum" style="margin-bottom:16px"></div>
+    <div id="list"></div>
+    <div class="row wrap" id="acts" style="margin-top:14px;display:none"><button class="btn" id="copy">Copiar lista para o Discord</button><button class="btn secondary" id="ledger">Lançar no saldo (não pagos)</button><span class="muted small" id="msg"></span></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261015f"></script>
+<script src="/assets/js/auth.js?v=20261015f"></script>
+<script src="/assets/js/common.js?v=20261015f"></script>
+<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/painel.js?v=20261015f"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261015f"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/regears/");
+const P = window.EmporioPainel;
+const $ = function (id) { return document.getElementById(id); };
+
+const AODP = { am: "https://west.albion-online-data.com", eu: "https://europe.albion-online-data.com", as: "https://east.albion-online-data.com" };
+const CITIES = "Caerleon,Bridgewatch,Fort Sterling,Lymhurst,Martlock,Thetford,Brecilien";
+const SLOTS = [["MainHand", "Arma"], ["OffHand", "Secundária"], ["Head", "Cabeça"], ["Armor", "Peito"], ["Shoes", "Sapatos"], ["Cape", "Capa"], ["Mount", "Montaria"], ["Potion", "Poção"], ["Food", "Comida"]];
+let G = null, B = [], deaths = [], prices = {}, DB = null, battleId = null;
+function paidKey() { return "emp_regear_" + battleId; }
+function paid() { try { return JSON.parse(localStorage.getItem(paidKey()) || "{}"); } catch (e) { return {}; } }
+function setPaid(p) { try { localStorage.setItem(paidKey(), JSON.stringify(p)); } catch (e) {} }
+function counted(slot) { return (slot !== "Mount" || $("mount").checked) && ((slot !== "Potion" && slot !== "Food") || $("cons").checked); }
+function value(v) { let t = 0; SLOTS.forEach(function (s) { const id = v.eq[s[0]]; if (id && counted(s[0])) t += prices[id] || 0; }); return Math.round(t * (parseFloat($("pct").value) || 0) / 100); }
+async function loadPrices(ids) {
+  const need = ids.filter(function (id) { return !(id in prices); });
+  for (let i = 0; i < need.length; i += 40) {
+    const chunk = need.slice(i, i + 40);
+    try {
+      const data = await fetch(AODP[G.s] + "/api/v2/stats/prices/" + chunk.join(",") + ".json?locations=" + encodeURIComponent(CITIES)).then(function (r) { return r.json(); });
+      chunk.forEach(function (id) { prices[id] = 0; });
+      data.forEach(function (d) { if (d.sell_price_min && (!prices[d.item_id] || d.sell_price_min < prices[d.item_id])) prices[d.item_id] = d.sell_price_min; });
+    } catch (e) { chunk.forEach(function (id) { prices[id] = 0; }); }
+  }
+}
+function draw() {
+  const pd = paid();
+  let total = 0, open = 0;
+  $("list").innerHTML = deaths.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>Pago</th><th>Jogador</th><th>Equipamento perdido</th><th class="num">Valor</th></tr></thead><tbody>' + deaths.map(function (e, i) {
+    const v = value(e.v); total += v; if (!pd[e.id]) open += v;
+    return '<tr><td><input type="checkbox" data-i="' + i + '"' + (pd[e.id] ? " checked" : "") + '></td><td><b>' + Emp.esc(e.v.n) + '</b><div class="muted small">IP ' + e.v.ip + " · " + Emp.dateTime(e.t) + "</div></td><td>" +
+      SLOTS.filter(function (s) { return e.v.eq[s[0]]; }).map(function (s) { const id = e.v.eq[s[0]]; return '<img class="ico sm" src="' + Emp.icon(id) + '" title="' + Emp.esc(Emp.itemName(DB, id) + ": " + (prices[id] ? Emp.num(prices[id]) : "sem preço")) + '" style="' + (counted(s[0]) ? "" : "opacity:.3") + '" alt="">'; }).join("") +
+      '</td><td class="num"><b>' + (v ? Emp.num(v) : "sem preço") + "</b></td></tr>";
+  }).join("") + "</tbody></table></div>" : Emp.emptyState("Ninguém da guilda morreu nessa batalha.");
+  $("sum").innerHTML = '<div class="stat"><b>' + deaths.length + '</b><span>Mortes da guilda</span></div><div class="stat"><b>' + Emp.num(total) + '</b><span>Total do regear</span></div><div class="stat"><b>' + Emp.num(open) + "</b><span>Falta pagar</span></div>";
+  $("acts").style.display = deaths.length ? "" : "none";
+}
+async function openBattle(id) {
+  battleId = id; deaths = [];
+  $("list").innerHTML = Emp.loading("Lendo as mortes da batalha e buscando preços...");
+  $("sum").innerHTML = ""; $("acts").style.display = "none";
+  try {
+    const r = await Promise.all([Emp.albion("battle", { s: G.s, id: id }), Emp.items()]);
+    DB = r[1];
+    deaths = r[0].events.filter(function (e) { return e.v.g === G.n; });
+    const ids = {};
+    deaths.forEach(function (e) { Object.values(e.v.eq).forEach(function (x) { ids[x] = 1; }); });
+    await loadPrices(Object.keys(ids));
+    draw();
+  } catch (e) { $("list").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+}
+$("bat").addEventListener("change", function () { openBattle(this.value); history.replaceState(null, "", "?b=" + this.value); });
+["pct", "mount", "cons"].forEach(function (id) { $(id).addEventListener("input", draw); $(id).addEventListener("change", draw); });
+$("list").addEventListener("change", function (e) {
+  const c = e.target.closest("[data-i]"); if (!c) return;
+  const pd = paid(); const ev = deaths[parseInt(c.dataset.i, 10)];
+  if (c.checked) pd[ev.id] = Date.now(); else delete pd[ev.id];
+  setPaid(pd); draw();
+});
+$("copy").onclick = function () {
+  const pd = paid();
+  const t = "**Regear** (" + $("bat").selectedOptions[0].textContent + ")\n" + deaths.map(function (e) { return (pd[e.id] ? "~~" : "") + e.v.n + ": " + Emp.num(value(e.v)) + (pd[e.id] ? "~~ (pago)" : ""); }).join("\n");
+  navigator.clipboard.writeText(t).then(function () { $("msg").textContent = "Copiado."; }, function () { prompt("Copie:", t); });
+};
+$("ledger").onclick = function () {
+  const key = "emp_saldo_" + G.id;
+  let L = []; try { L = JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) {}
+  const pd = paid(); let n = 0;
+  deaths.forEach(function (e) {
+    if (pd[e.id]) return;
+    const v = value(e.v); if (!v) return;
+    L.unshift({ id: Date.now().toString(36) + n, t: Date.now(), p: e.v.n, v: v, m: "Regear da batalha " + battleId });
+    pd[e.id] = Date.now(); n++;
+  });
+  try { localStorage.setItem(key, JSON.stringify(L)); } catch (e) {}
+  setPaid(pd); draw();
+  $("msg").innerHTML = n + " regear(s) lançados no <a href=\"/painel/guildas/saldo/\">saldo</a> e marcados como pagos.";
+};
+P.guildBar($("gbar"), async function (g) {
+  G = g; $("bat").innerHTML = ""; $("list").innerHTML = ""; $("sum").innerHTML = "";
+  if (!G) { $("list").innerHTML = Emp.emptyState("Escolha a guilda na barra acima."); return; }
+  $("list").innerHTML = Emp.loading("Buscando as batalhas da guilda...");
+  try {
+    B = (await P.guildBattles(G, 2)).filter(function (b) { return P.guildSide(b, G.id).d > 0; });
+    if (!B.length) { $("list").innerHTML = Emp.emptyState("A guilda não teve mortes nas batalhas recentes."); return; }
+    $("bat").innerHTML = B.map(function (b) { const s = P.guildSide(b, G.id); return '<option value="' + b.id + '">' + Emp.dateTime(b.startTime) + " · " + s.d + (s.d === 1 ? " morte" : " mortes") + " da guilda · " + s.tot + " jogadores</option>"; }).join("");
+    const want = new URLSearchParams(location.search).get("b");
+    if (want && B.some(function (b) { return String(b.id) === want; })) $("bat").value = want;
+    openBattle($("bat").value);
+  } catch (e) { $("list").innerHTML = Emp.emptyState(Emp.esc(e.message)); }
+});
+
+</script>
+</body>
+</html>
