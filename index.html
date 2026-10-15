@@ -3,34 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Empório dos Bots</title>
-<style>
-  :root {
-    --bg: #0b0e14;
-    --bg-soft: #151924;
-    --card: #12151f;
-    --card-border: rgba(226,188,98,.10);
-    --gold: #e2bc62;
-    --gold-soft: rgba(226,188,98,.14);
-    --text: #dfe3ea;
-    --text-dim: #8b93a3;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; height:100%; background: radial-gradient(1200px 700px at 20% -10%, #161b29 0%, var(--bg) 55%); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-  .wrap { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 40px 20px; }
-  .brand { font-size: 22px; letter-spacing: 2.5px; color: var(--gold); font-weight:700; margin-bottom: 18px; }
-  h1 { font-size: 30px; margin: 0 0 10px; }
-  h1 span { color: var(--gold); }
-  p { color: var(--text-dim); max-width: 460px; line-height:1.6; }
-  .pill { display:inline-block; background: var(--gold-soft); color: var(--gold); font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 999px; margin-bottom: 18px; letter-spacing: .4px; }
-</style>
+<title>Empório dos Bots — Builds, composições e eventos</title>
+<link rel="stylesheet" href="/assets/css/theme.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="pill">SEM ASSINATURA</div>
-    <div class="brand">EMPÓRIO DOS BOTS</div>
-    <h1>Site em <span>reconstrução</span>.</h1>
-    <p>Essa é a nova versão do site, sendo montada agora. Em instantes essa página vai dar lugar ao site completo (builds, composições, eventos).</p>
+<div id="topbar-root"></div>
+
+<div class="page-wrap" style="padding-top:70px;">
+  <div class="pill" style="margin-bottom:18px;">SEM ASSINATURA</div>
+  <h1 style="font-size:46px; line-height:1.15; margin:0 0 16px; max-width:640px;">
+    Um lugar para toda a sua <span style="color:var(--gold);">party.</span>
+  </h1>
+  <p class="subtitle" style="font-size:16px; max-width:460px; margin-bottom:28px;">
+    Builds, composições e eventos.<br>Seu arsenal organizado, sempre gratuito.
+  </p>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <a class="btn" href="/builds/" style="padding:12px 24px; font-size:14px;">Explorar a biblioteca →</a>
+    <a class="btn secondary" href="/login/" style="padding:12px 24px; font-size:14px;">Entrar com Discord</a>
   </div>
+</div>
+
+<div class="footer">Empório dos Bots</div>
+
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/shell.js"></script>
+<script>window.EmporioShell.renderTopbar("/");</script>
 </body>
 </html>

@@ -1,0 +1,61 @@
+/* Empório dos Bots — tema compartilhado (mesmas cores do painel em eventsite.py) */
+:root {
+  --bg: #0b0e14;
+  --bg-soft: #151924;
+  --card: #12151f;
+  --card-border: rgba(226,188,98,.10);
+  --gold: #e2bc62;
+  --gold-soft: rgba(226,188,98,.14);
+  --text: #dfe3ea;
+  --text-dim: #8b93a3;
+  --shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; min-height: 100%;
+  background: radial-gradient(1200px 700px at 20% -10%, #161b29 0%, var(--bg) 55%);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--gold); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; }
+
+/* ---- topbar ---- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 32px; border-bottom: 1px solid var(--card-border);
+  position: sticky; top: 0; background: rgba(11,14,20,.88); backdrop-filter: blur(10px); z-index: 20;
+  gap: 16px; flex-wrap: wrap;
+}
+.topbar .brand-group { display: flex; align-items: center; gap: 10px; }
+.topbar .brand { font-size: 19px; letter-spacing: 1px; font-weight: 700; color: var(--text); }
+.topbar .brand b { color: var(--gold); }
+.topbar .logo-x {
+  width: 30px; height: 30px; border-radius: 8px; background: var(--gold-soft);
+  display: flex; align-items: center; justify-content: center; color: var(--gold); font-weight: 800; font-size: 15px;
+  border: 1px solid rgba(226,188,98,.3);
+}
+.topbar nav { display: flex; align-items: center; gap: 28px; }
+.topbar nav a { color: var(--text-dim); font-size: 13px; text-transform: uppercase; letter-spacing: 1.1px; font-weight: 600; transition: color .15s ease; }
+.topbar nav a:hover, .topbar nav a.active { color: var(--gold); text-decoration: none; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--gold); color: #191305; font-weight: 700; border: none;
+  padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13.5px;
+  transition: filter .15s ease, transform .1s ease;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.secondary { background: transparent; border: 1px solid rgba(226,188,98,.35); color: var(--gold); }
+.btn.secondary:hover { background: var(--gold-soft); filter: none; }
+
+.page-wrap { max-width: 1280px; margin: 0 auto; padding: 36px 32px 80px; }
+.pill {
+  display: inline-block; background: var(--gold-soft); color: var(--gold);
+  font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+  letter-spacing: .4px;
+}
+.subtitle { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+
+.footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 40px 20px; }

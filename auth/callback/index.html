@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrando… — Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css">
+</head>
+<body>
+<div class="page-wrap" style="display:flex; align-items:center; justify-content:center; min-height:80vh; text-align:center;">
+  <div>
+    <div class="pill" style="margin-bottom:16px;">SEM ASSINATURA</div>
+    <p class="subtitle">Entrando na sua conta…</p>
+  </div>
+</div>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (token) {
+    window.EmporioAuth.setToken(token);
+    window.location.href = "/";
+  } else {
+    window.location.href = "/login/?erro=oauth_falhou";
+  }
+</script>
+</body>
+</html>
