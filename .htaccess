@@ -1,0 +1,47 @@
+# Rotas dinâmicas (igual albionzvz: /builds/<id>, /composicoes/<id>, /batalhas/<id>, /clipes/<id>)
+Options -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^builds/([^/]+)/?$ /builds/detalhe/index.html [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^composicoes/([^/]+)/?$ /composicoes/index.html [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^batalhas/([^/]+)/?$ /batalhas/index.html [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^clipes/([^/]+)/?$ /clipes/index.html [L]
+
+# URLs em inglês do albionzvz -> equivalentes em PT-BR
+RedirectMatch 301 ^/comps(/.*)?$ /composicoes$1
+RedirectMatch 301 ^/battles/wars/?$ /batalhas/guerras/
+RedirectMatch 301 ^/battles/meta/?$ /batalhas/meta/
+RedirectMatch 301 ^/battles(/.*)?$ /batalhas$1
+RedirectMatch 301 ^/guilds/?$ /guildas/
+RedirectMatch 301 ^/create-event/?$ /criar-evento/
+RedirectMatch 301 ^/dashboard/guilds/?$ /painel/guildas/
+RedirectMatch 301 ^/map/?$ /mapa/
+RedirectMatch 301 ^/season-points/?$ /pontos-temporada/
+RedirectMatch 301 ^/market/?$ /mercado/
+RedirectMatch 301 ^/clips(/.*)?$ /clipes$1
+RedirectMatch 301 ^/games/?$ /jogos/
+RedirectMatch 301 ^/about/?$ /sobre/
+RedirectMatch 301 ^/contact/?$ /contato/
+RedirectMatch 301 ^/terms/?$ /termos/
+RedirectMatch 301 ^/privacy/?$ /privacidade/
+RedirectMatch 301 ^/albion-downtime/?$ /manutencao-albion/
+RedirectMatch 301 ^/features/events/?$ /recursos/eventos/
+RedirectMatch 301 ^/features/builds/?$ /recursos/builds/
+RedirectMatch 301 ^/features/signups/?$ /recursos/inscricoes/
+RedirectMatch 301 ^/features/economy/?$ /recursos/economia/
+RedirectMatch 301 ^/features/discord/?$ /recursos/discord/
+RedirectMatch 301 ^/auth/login/?$ /login/
+RedirectMatch 301 ^/auth/sign-up/?$ /cadastro/
+
+ErrorDocument 404 /404.html
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>

@@ -163,7 +163,8 @@ function renderGrid() {
 
   grid.querySelectorAll(".build-card").forEach(function (card) {
     card.addEventListener("click", function () {
-      openModal(filtered[parseInt(card.dataset.idx, 10)]);
+      const b = filtered[parseInt(card.dataset.idx, 10)];
+      window.location.href = "/builds/" + encodeURIComponent(b.public_id);
     });
   });
 }

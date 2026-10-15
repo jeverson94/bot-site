@@ -1,0 +1,26 @@
+/* Páginas internas — hero + grade de recursos */
+.page-hero { padding: 40px 0 34px; max-width: 760px; }
+.page-hero .eyebrow { color: var(--gold); font-size: 12px; font-weight: 700; letter-spacing: 2.2px; text-transform: uppercase; margin-bottom: 14px; }
+.page-hero h1 { font-size: 44px; line-height: 1.1; margin: 0 0 14px; letter-spacing: -.5px; }
+.page-hero .subtitle { font-size: 16px; margin: 0 0 22px; }
+.soon { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--gold); background: var(--gold-soft); border: 1px solid rgba(226,188,98,.25); padding: 6px 14px; border-radius: 999px; }
+.soon::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold); animation: pulse 1.8s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin-top: 10px; }
+.feature-card {
+  position: relative; overflow: hidden;
+  background: linear-gradient(160deg, rgba(226,188,98,.06), rgba(18,21,31,0) 45%), var(--card);
+  border: 1px solid var(--card-border); border-radius: 16px; padding: 24px 22px 22px;
+  box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease;
+}
+.feature-card:hover { transform: translateY(-3px); border-color: rgba(226,188,98,.3); }
+.feature-num { font-size: 12px; font-weight: 800; color: var(--gold); letter-spacing: 1px; opacity: .8; margin-bottom: 14px; }
+.feature-card h3 { margin: 0 0 8px; font-size: 17px; }
+.feature-card p { margin: 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
+.legal-text { color: var(--text-dim); font-size: 14px; line-height: 1.7; max-width: 760px; }
+
+@media (max-width: 700px) {
+  .page-wrap { padding: 24px 16px 60px; }
+  .page-hero h1 { font-size: 32px; }
+}
