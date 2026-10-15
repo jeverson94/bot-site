@@ -176,7 +176,28 @@ function makeTex(seed, spots, dots) {
   for (let i = 0; i < 160; i++) { g.fillStyle = dots[i % dots.length]; g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 1.5, 1 + rnd() * 1.5); }
   return c;
 }
+let OCEAN = null;
+function buildOcean() {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d");
+  let t = 99; const rnd = function () { t = (t * 16807) % 2147483647; return t / 2147483647; };
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * 256, y = rnd() * 256, r = 20 + rnd() * 50;
+    for (let dx = -256; dx <= 256; dx += 256) for (let dy = -256; dy <= 256; dy += 256) {
+      const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+      gr.addColorStop(0, i % 2 ? "rgba(70,120,150,.10)" : "rgba(0,10,20,.16)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+    }
+  }
+  g.strokeStyle = "rgba(140,190,215,.07)"; g.lineWidth = 1;
+  for (let i = 0; i < 46; i++) {
+    const x = rnd() * 256, y = rnd() * 256, w = 8 + rnd() * 18;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w / 2, y - 3, x + w, y); g.stroke();
+  }
+  OCEAN = ctx.createPattern(c, "repeat");
+}
 function buildTextures() {
+  buildOcean();
   const spec = {
     FR: [["rgba(70,110,60,.35)", "rgba(20,40,25,.35)"], ["rgba(120,160,90,.25)", "rgba(10,25,15,.3)"]],
     SW: [["rgba(60,100,95,.35)", "rgba(20,45,45,.35)"], ["rgba(90,140,120,.25)", "rgba(10,30,30,.3)"]],
@@ -244,19 +265,60 @@ function path(poly) {
   poly.forEach(function (p, i) { if (i) ctx.lineTo(sx(p[0]), sy(p[1])); else ctx.moveTo(sx(p[0]), sy(p[1])); });
   ctx.closePath();
 }
+// Minimapas gerados dos arquivos do jogo: atlas na visão geral, imagem de cada zona com zoom.
+const MINI = { v: 1, atlas: null, img: {}, cols: 21, cell: 96, res: 512 };
+(function () {
+  const a = new Image();
+  a.onload = function () { MINI.atlas = a; dirty = true; };
+  a.src = "/assets/img/mapa/atlas.webp?v=" + MINI.v;
+})();
+function miniImg(i) {
+  let m = MINI.img[i];
+  if (!m) {
+    m = MINI.img[i] = new Image();
+    m.onload = function () { m._ok = true; dirty = true; };
+    m.src = "/assets/img/mapa/" + i + ".webp?v=" + MINI.v;
+  }
+  return m._ok ? m : null;
+}
+function drawMini(z, i, zp) {
+  const cx = sx(z._w[0]), cy = sy(z._w[1]), r = zp * .75;
+  if (cx < -r || cx > W + r || cy < -r || cy > H + r) return true;
+  const big = zp > 110 ? miniImg(i) : null;
+  if (!big && !MINI.atlas) return false;
+  const h = z.s / 2, R = MINI.res;
+  const p0 = toWorld(z, -h, h), p1 = toWorld(z, h, h), p2 = toWorld(z, -h, -h);
+  const x0 = sx(p0[0]), y0 = sy(p0[1]);
+  ctx.save();
+  ctx.setTransform(DPR * (sx(p1[0]) - x0) / R, DPR * (sy(p1[1]) - y0) / R, DPR * (sx(p2[0]) - x0) / R, DPR * (sy(p2[1]) - y0) / R, DPR * x0, DPR * y0);
+  ctx.imageSmoothingQuality = "high";
+  if (big) ctx.drawImage(big, 0, 0, R, R);
+  else ctx.drawImage(MINI.atlas, (i % MINI.cols) * MINI.cell, Math.floor(i / MINI.cols) * MINI.cell, MINI.cell, MINI.cell, 0, 0, R, R);
+  ctx.restore();
+  return true;
+}
 function draw() {
   dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * .8);
-  g.addColorStop(0, "#111827"); g.addColorStop(1, "#070a10");
+  g.addColorStop(0, "#0f2230"); g.addColorStop(1, "#071019");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Ondulação do mar, presa ao mapa para acompanhar o arrasto.
+  if (OCEAN) {
+    const k = Math.max(.35, Math.min(2.5, view.k / 60));
+    ctx.save();
+    ctx.translate(sx(0) % (256 * k), sy(0) % (256 * k)); ctx.scale(k, k);
+    ctx.fillStyle = OCEAN; ctx.globalAlpha = .55;
+    ctx.fillRect(-256, -256, W / k + 512, H / k + 512);
+    ctx.restore();
+  }
   if (!D) return;
   const zp = zoneSize();
 
   // Litoral: zonas ampliadas e desfocadas formam as ilhas.
   ctx.save();
   ctx.filter = "blur(" + Math.max(4, Math.min(28, zp * .35)) + "px)";
-  ctx.fillStyle = "rgba(40,58,66,.85)";
+  ctx.fillStyle = "rgba(46,84,100,.85)";
   Z.forEach(function (z) { path(z._c2); ctx.fill(); });
   ctx.restore();
 
@@ -284,10 +346,12 @@ function draw() {
     gr.addColorStop(0, z.k === "city" ? "#5a4a26" : bio.c);
     gr.addColorStop(1, z.k === "city" ? "#3d3220" : bio.d);
     ctx.globalAlpha = ok ? 1 : .22;
-    ctx.fillStyle = gr; ctx.fill();
-    // Textura do terreno por bioma, só quando a zona já está grande na tela.
-    if (zp > 24 && TEX[z.k === "city" ? "city" : z.b]) { ctx.fillStyle = TEX[z.k === "city" ? "city" : z.b]; ctx.fill(); }
-    ctx.lineWidth = Math.min(hover === i ? 4 : 2.5, Math.max(1, zp * (hover === i ? .045 : .018)));
+    if (!drawMini(z, i, zp)) {
+      ctx.fillStyle = gr; ctx.fill();
+      if (zp > 24 && TEX[z.k === "city" ? "city" : z.b]) { ctx.fillStyle = TEX[z.k === "city" ? "city" : z.b]; ctx.fill(); }
+    }
+    path(z._c);
+    ctx.lineWidth = Math.min(hover === i ? 4 : 2, Math.max(1, zp * (hover === i ? .045 : .014)));
     ctx.strokeStyle = hover === i ? "#ffffff" : KIND[z.k].c;
     ctx.stroke();
     ctx.globalAlpha = 1;
