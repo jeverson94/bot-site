@@ -12,8 +12,10 @@ function icone_arquivo($id, $q = 1) {
     return icone_dir() . '/' . $id . ($q > 1 ? "~q$q" : '') . '.webp';
 }
 
+// Sem parâmetros o render entrega a imagem já pronta na CDN (cerca de 0,2 s). Com size= ou
+// count= ele gera de novo e leva de 7 a 20 s, então o redimensionamento é feito aqui.
 function icone_url_render($id, $q = 1) {
-    return 'https://render.albiononline.com/v1/item/' . rawurlencode($id) . '.png?count=1&quality=' . $q . '&size=180';
+    return 'https://render.albiononline.com/v1/item/' . rawurlencode($id) . '.png' . ($q > 1 ? '?quality=' . $q : '');
 }
 
 // Converte o PNG do render para WebP (com transparência) e grava sem deixar arquivo pela metade.
@@ -23,6 +25,16 @@ function icone_salvar($file, $png) {
     $ok = false;
     if (function_exists('imagecreatefromstring') && function_exists('imagewebp')) {
         $im = @imagecreatefromstring($png);
+        if ($im && imagesx($im) > 180) {
+            // Reduz para 180 px (o render entrega 217 px), mantendo a transparência.
+            $small = imagecreatetruecolor(180, 180);
+            imagealphablending($small, false);
+            imagesavealpha($small, true);
+            imagefill($small, 0, 0, imagecolorallocatealpha($small, 0, 0, 0, 127));
+            imagecopyresampled($small, $im, 0, 0, 0, 0, 180, 180, imagesx($im), imagesy($im));
+            imagedestroy($im);
+            $im = $small;
+        }
         if ($im) {
             imagepalettetotruecolor($im);
             imagealphablending($im, false);
@@ -57,7 +69,7 @@ function icone_lista_catalogo() {
 }
 
 // Baixa os ícones que ainda faltam, 10 por vez, até o prazo. Devolve quantos faltavam e quantos baixou.
-function icone_aquecer($segundos, $paralelo = 4) {
+function icone_aquecer($segundos, $paralelo = 8) {
     $fim = microtime(true) + $segundos;
     // Variações que o render do Albion não tem (404) ficam anotadas para não tentar de novo.
     $nf = dirname(__DIR__) . '/api/cache/icones_inexistentes.json';

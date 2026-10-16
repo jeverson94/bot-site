@@ -286,7 +286,7 @@ switch ($r) {
         // Baixa aos poucos os ícones de todos os itens do catálogo (chamado pelo agendamento).
         $lockf = fopen(cache_dir() . '/icones.lock', 'c');
         if (!$lockf || !flock($lockf, LOCK_EX | LOCK_NB)) { echo json_encode(['ocupado' => true]); break; }
-        if (!empty($_GET['esperar'])) { @set_time_limit(90); echo json_encode(icone_aquecer(45, param_int('par', 4, 1, 12))); break; }
+        if (!empty($_GET['esperar'])) { @set_time_limit(90); echo json_encode(icone_aquecer(45, param_int('par', 8, 1, 12))); break; }
         respond_then(json_encode(['iniciado' => true]), function () { @set_time_limit(120); icone_aquecer(70); });
         break;
     }
