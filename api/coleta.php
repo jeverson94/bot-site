@@ -120,10 +120,15 @@ function fetch_pages($s, $offsets, $timeout = 35) {
 
 // Busca e tenta de novo as páginas que falharam (a API oficial oscila bastante).
 function fetch_retry($s, $offs, &$stats) {
+    $before = count($GLOBALS['coleta_erros'] ?? []);
     $pages = fetch_pages($s, $offs);
     $stats['paginas'] += count($offs);
     $miss = array_keys(array_filter($pages, function ($a) { return $a === null; }));
     if ($miss) {
+        // A API responde 429 quando pedimos rápido demais: espera um pouco antes de repetir.
+        $limited = false;
+        foreach (array_slice($GLOBALS['coleta_erros'] ?? [], $before) as $e) if (substr($e, -4) === ':429') $limited = true;
+        sleep($limited ? 6 : 1);
         $again = fetch_pages($s, $miss, 40);
         foreach ($again as $o => $a) $pages[$o] = $a;
         $stats['repetidas'] = ($stats['repetidas'] ?? 0) + count($miss);
@@ -180,6 +185,7 @@ function collect($s, $force = false) {
         // Só avança até onde não houve buraco, e volta um pouco para cobrir o que andou na lista enquanto buscava.
         if ($upto === null) break;
         meta_set($pdo, 'backfill_off', $upto >= MAX_OFFSET ? MAX_OFFSET : max($bf + 50, $upto - 50));
+        usleep(1500000);   // ritmo para não levar 429 da API
     }
     $stats['historico'] = (int)meta_get($pdo, 'backfill_off', 0) >= MAX_OFFSET ? 'completo' : 'coletando';
 
