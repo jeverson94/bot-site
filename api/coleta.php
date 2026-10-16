@@ -119,17 +119,18 @@ function fetch_pages($s, $offsets, $timeout = 30) {
 }
 
 // Busca e tenta de novo as páginas que falharam (a API oficial oscila bastante).
-function fetch_retry($s, $offs, &$stats) {
+function fetch_retry($s, $offs, &$stats, $deadline) {
     $before = count($GLOBALS['coleta_erros'] ?? []);
-    $pages = fetch_pages($s, $offs);
+    $left = function () use ($deadline) { return $deadline - microtime(true); };
+    $pages = fetch_pages($s, $offs, (int)max(5, min(25, $left())));
     $stats['paginas'] += count($offs);
     $miss = array_keys(array_filter($pages, function ($a) { return $a === null; }));
-    if ($miss) {
+    if ($miss && $left() > 15) {
         // A API responde 429 quando pedimos rápido demais: espera um pouco antes de repetir.
         $limited = false;
         foreach (array_slice($GLOBALS['coleta_erros'] ?? [], $before) as $e) if (substr($e, -4) === ':429') $limited = true;
-        sleep($limited ? 6 : 1);
-        $again = fetch_pages($s, $miss, 30);
+        sleep($limited ? 4 : 1);
+        $again = fetch_pages($s, $miss, (int)max(5, min(25, $left())));
         foreach ($again as $o => $a) $pages[$o] = $a;
         $stats['repetidas'] = ($stats['repetidas'] ?? 0) + count($miss);
     }
@@ -148,13 +149,15 @@ function collect($s, $force = false) {
     if (!$force && time() - $last < 60) { flock($lockf, LOCK_UN); return ['recente' => true]; }
     meta_set($pdo, 'last_run', time());
     $t0 = microtime(true);
+    // O servidor corta tarefas longas em segundo plano: cada rodada termina em cerca de 70 s.
+    $deadline = $t0 + 70;
     $stats = ['novas' => 0, 'paginas' => 0, 'falhas' => 0];
     $newest = (int)$pdo->query('SELECT MAX(t) FROM battles')->fetchColumn();
 
     meta_set($pdo, 'etapa', 'novidades ' . date('H:i:s'));
     // 1) Novidades: avança de 4 em 4 páginas até alcançar o que já estava salvo (com 30 min de folga para lutas em andamento).
-    for ($off = 0; $off <= MAX_OFFSET && microtime(true) - $t0 < 60; $off += 200) {
-        $pages = fetch_retry($s, range($off, min(MAX_OFFSET, $off + 150), 50), $stats);
+    for ($off = 0; $off <= MAX_OFFSET && microtime(true) < $deadline - 25; $off += 200) {
+        $pages = fetch_retry($s, range($off, min(MAX_OFFSET, $off + 150), 50), $stats, $deadline);
         $reached = false;
         $failed = false;
         foreach ($pages as $arr) {
@@ -168,12 +171,12 @@ function collect($s, $force = false) {
 
     meta_set($pdo, 'etapa', 'historico ' . round(microtime(true) - $t0) . 's');
     // 2) Histórico: continua de onde parou, em blocos de 8 páginas, enquanto houver tempo.
-    while (microtime(true) - $t0 < 90) {
+    while (microtime(true) < $deadline - 25) {
         $bf = (int)meta_get($pdo, 'backfill_off', 0);
         if ($bf >= MAX_OFFSET) break;
         $from = max($bf, 200);
         $offs = range($from, min(MAX_OFFSET, $from + 350), 50);
-        $pages = fetch_retry($s, $offs, $stats);
+        $pages = fetch_retry($s, $offs, $stats, $deadline);
         $upto = null;   // última página antes da primeira falha
         foreach ($offs as $o) {
             if ($pages[$o] === null) break;
@@ -187,7 +190,7 @@ function collect($s, $force = false) {
         // Só avança até onde não houve buraco, e volta um pouco para cobrir o que andou na lista enquanto buscava.
         if ($upto === null) break;
         meta_set($pdo, 'backfill_off', $upto >= MAX_OFFSET ? MAX_OFFSET : max($bf + 50, $upto - 50));
-        usleep(1500000);   // ritmo para não levar 429 da API
+        usleep(1200000);   // ritmo para não levar 429 da API
     }
     $stats['historico'] = (int)meta_get($pdo, 'backfill_off', 0) >= MAX_OFFSET ? 'completo' : 'coletando';
 
