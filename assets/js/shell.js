@@ -54,7 +54,9 @@
   @media (max-width: 900px) {
     .topbar nav { display:none; width:100%; flex-direction:column; align-items:stretch; gap:4px; }
     .topbar nav.open { display:flex; }
-    .menu-toggle { display:block; }
+    .menu-toggle { display:block; order:1; margin-left:auto; }
+    #topbar-account { order:2; }
+    .topbar nav { order:3; }
     .nav-drop { position:static; transform:none; opacity:1; pointer-events:auto; box-shadow:none; display:none; min-width:0; }
     .nav-group.open .nav-drop { display:block; transform:none; }
     .nav-group:hover .nav-drop { transform:none; }

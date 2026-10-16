@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Empório dos Bots | Builds, batalhas e ferramentas de Albion Online</title>
 <meta name="description" content="Builds, composições, batalhas, mercado, mapa e outras ferramentas de Albion Online para jogadores e guildas. Gratuito, com login pelo Discord.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
 <style>
   .hero { padding: 54px 0 30px; max-width: 760px; }
   .hero h1 { font-size: 48px; line-height: 1.1; margin: 16px 0 16px; letter-spacing: -.5px; }
@@ -15,7 +15,9 @@
   .battle-row:last-child { border-bottom: none; }
   .battle-row:hover b { color: var(--gold); }
   .battle-row b { color: var(--text); font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .battle-row .meta { margin-left: auto; text-align: right; white-space: nowrap; font-size: 12.5px; color: var(--text-dim); }
+  .battle-row > div:first-child { flex: 1; min-width: 0; }
+  .battle-row .meta { margin-left: auto; text-align: right; white-space: nowrap; font-size: 12.5px; color: var(--text-dim); flex-shrink: 0; }
+  @media (max-width: 420px) { .battle-row { gap: 10px; } .battle-row .meta { font-size: 11.5px; } }
   .bcard { display: block; color: inherit; }
   .bcard:hover { text-decoration: none; }
   .mini { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 10px 0; }
@@ -59,10 +61,10 @@
     <div class="grid3" id="tools" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"></div>
   </div>
 </main>
-<script src="/assets/js/config.js?v=20261015f"></script>
-<script src="/assets/js/auth.js?v=20261015f"></script>
-<script src="/assets/js/common.js?v=20261015f"></script>
-<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/config.js?v=20261016c"></script>
+<script src="/assets/js/auth.js?v=20261016c"></script>
+<script src="/assets/js/common.js?v=20261016c"></script>
+<script src="/assets/js/shell.js?v=20261016c"></script>
 <script>
 EmporioShell.renderTopbar("/");
 
@@ -71,14 +73,23 @@ async function battles() {
   const el = document.getElementById("battles");
   el.innerHTML = Emp.loading("Buscando batalhas...");
   try {
-    const list = (await Emp.albion("battles", { s: region, limit: 50, sort: "recent" }))
-      .filter(function (b) { return Object.keys(b.players || {}).length >= 10; }).slice(0, 5);
+    // Do banco do site (resposta na hora); se ele ainda estiver vazio, cai na API oficial.
+    let list = [];
+    try {
+      const d = await Emp.albion("lista", { s: region, min: 10 });
+      list = d.battles.slice(0, 5).map(function (b) { return { id: b.id, t: b.startTime, n: b.n, k: b.totalKills, f: b.totalFame, names: b.sides.slice(0, 3).map(function (x) { return x.n; }).join(", ") }; });
+    } catch (e) {}
+    if (!list.length) {
+      list = (await Emp.albion("battles", { s: region, limit: 50, sort: "recent" }))
+        .filter(function (b) { return Object.keys(b.players || {}).length >= 10; }).slice(0, 5).map(function (b) {
+          const sides = {};
+          Object.values(b.players).forEach(function (p) { const k = p.allianceName || p.guildName; if (k) sides[k] = (sides[k] || 0) + 1; });
+          return { id: b.id, t: b.startTime, n: Object.keys(b.players).length, k: b.totalKills, f: b.totalFame, names: Object.keys(sides).sort(function (a, c) { return sides[c] - sides[a]; }).slice(0, 3).join(", ") };
+        });
+    }
     el.innerHTML = list.length ? list.map(function (b) {
-      const sides = {};
-      Object.values(b.players).forEach(function (p) { const k = p.allianceName || p.guildName; if (k) sides[k] = (sides[k] || 0) + 1; });
-      const names = Object.keys(sides).sort(function (a, c) { return sides[c] - sides[a]; }).slice(0, 3).join(", ");
-      return '<div class="battle-row" data-id="' + b.id + '"><div style="min-width:0"><b>' + Emp.esc(names || "Jogadores sem guilda") + '</b><span class="muted small">' + Emp.ago(b.startTime) +
-        '</span></div><div class="meta">' + Object.keys(b.players).length + " jogadores<br>" + b.totalKills + " abates · " + Emp.num(b.totalFame) + "</div></div>";
+      return '<div class="battle-row" data-id="' + b.id + '"><div><b>' + Emp.esc(b.names || "Jogadores sem guilda") + '</b><span class="muted small">' + Emp.ago(b.t) +
+        '</span></div><div class="meta">' + b.n + " jogadores<br>" + b.k + " abates · " + Emp.num(b.f) + "</div></div>";
     }).join("") : '<p class="muted">Nenhuma batalha grande nas últimas lutas registradas.</p>';
   } catch (e) {
     el.innerHTML = '<p class="muted">' + Emp.esc(e.message) + "</p>";

@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Guildas | Empório dos Bots</title>
 <meta name="description" content="Diretório das guildas de Albion Online: batalhas, membros, K/D, fama e horário nobre, com dados coletados o tempo todo da API oficial.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261016a">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261016a">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
 <style>
   .filters { display: grid; gap: 16px; }
   .filters h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--text-dim); }
@@ -46,7 +46,8 @@
   .gtable td .gname { max-width: 260px; }
   .pager b { align-self: center; font-size: 13px; color: var(--text-dim); font-weight: 600; }
   @media (max-width: 1000px) { .gcards { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 640px) { .gcards { grid-template-columns: 1fr; } .two { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { .gcards { grid-template-columns: 1fr; } .two { grid-template-columns: 1fr; } .gnums { gap: 14px; flex-wrap: wrap; } .result-bar { margin-top: 18px; } .live { font-size: 11.5px; } }
+  @media (max-width: 380px) { .gtop { flex-wrap: wrap; } .gbadge { order: -1; } .filters .frow .btn { flex: 1; } }
 </style>
 </head>
 <body>
@@ -108,11 +109,11 @@
   <div id="out"><div class="state"><span class="spin"></span>Carregando...</div></div>
   <div class="pager" id="pager"></div>
 </main>
-<script src="/assets/js/config.js?v=20261016a"></script>
-<script src="/assets/js/auth.js?v=20261016a"></script>
-<script src="/assets/js/common.js?v=20261016a"></script>
-<script src="/assets/js/shell.js?v=20261016a"></script>
-<script src="/assets/js/graficos.js?v=20261016a"></script>
+<script src="/assets/js/config.js?v=20261016c"></script>
+<script src="/assets/js/auth.js?v=20261016c"></script>
+<script src="/assets/js/common.js?v=20261016c"></script>
+<script src="/assets/js/shell.js?v=20261016c"></script>
+<script src="/assets/js/graficos.js?v=20261016c"></script>
 <script>
 EmporioShell.renderTopbar("/guildas/");
 

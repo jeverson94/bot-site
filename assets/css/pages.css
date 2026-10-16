@@ -101,7 +101,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .dot.warn { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 
 @media (max-width: 700px) {
-  .page-wrap { padding: 24px 16px 60px; }
+  .page-wrap { padding-top: 24px; padding-bottom: 60px; }
   .page-hero h1 { font-size: 30px; }
 }
 

@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Guilda | Empório dos Bots</title>
 <meta name="description" content="Perfil de guilda de Albion Online: batalhas por dia, horário nobre, escala, rivais, membros e últimas lutas.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261016a">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261016a">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
 <style>
   .stats8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   .kd-up { color: #6fcf8e !important; } .kd-down { color: #e66a6a !important; }
@@ -18,6 +18,7 @@
   .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   @media (max-width: 900px) { .stats8 { grid-template-columns: repeat(2, 1fr); } .cols2 { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .scale-row { grid-template-columns: 96px 1fr 44px 64px; gap: 8px; font-size: 12px; } .stat b { font-size: 18px; } }
 </style>
 </head>
 <body>
@@ -34,11 +35,11 @@
   </div>
   <div id="out"><div class="state"><span class="spin"></span>Carregando...</div></div>
 </main>
-<script src="/assets/js/config.js?v=20261016a"></script>
-<script src="/assets/js/auth.js?v=20261016a"></script>
-<script src="/assets/js/common.js?v=20261016a"></script>
-<script src="/assets/js/shell.js?v=20261016a"></script>
-<script src="/assets/js/graficos.js?v=20261016a"></script>
+<script src="/assets/js/config.js?v=20261016c"></script>
+<script src="/assets/js/auth.js?v=20261016c"></script>
+<script src="/assets/js/common.js?v=20261016c"></script>
+<script src="/assets/js/shell.js?v=20261016c"></script>
+<script src="/assets/js/graficos.js?v=20261016c"></script>
 <script>
 EmporioShell.renderTopbar("/guildas/");
 const P = new URLSearchParams(location.search);

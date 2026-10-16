@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mapa | Empório dos Bots</title>
 <meta name="description" content="Mapa de Albion Online com todas as zonas, tier e qualidade, castelos, postos avançados, masmorras e portais. Rota mais curta entre zonas.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015g">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015g">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
 <style>
   .map-page { padding: 18px 20px 24px; }
   .map-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 4px 12px; }
@@ -55,6 +55,14 @@
     .panel { width: calc(100% - 28px); }
     .panel.left { top: 104px; }
     .panel.right { top: auto; bottom: 14px; max-height: 45%; }
+    .panel.closed { width: auto; }
+  }
+  /* Celular deitado: mapa ocupa quase toda a altura e os painéis abertos rolam por dentro. */
+  @media (max-height: 520px) and (orientation: landscape) {
+    .map-wrap { height: calc(100vh - 24px); min-height: 300px; }
+    .panel { width: 280px; }
+    .panel.left { top: 104px; max-height: calc(100% - 118px); }
+    .panel.right { top: 14px; bottom: auto; max-height: calc(100% - 28px); }
     .panel.closed { width: auto; }
   }
 </style>
@@ -128,10 +136,10 @@
     <div class="tip" id="tip"></div>
   </div>
 </main>
-<script src="/assets/js/config.js?v=20261015g"></script>
-<script src="/assets/js/auth.js?v=20261015g"></script>
-<script src="/assets/js/common.js?v=20261015g"></script>
-<script src="/assets/js/shell.js?v=20261015g"></script>
+<script src="/assets/js/config.js?v=20261016c"></script>
+<script src="/assets/js/auth.js?v=20261016c"></script>
+<script src="/assets/js/common.js?v=20261016c"></script>
+<script src="/assets/js/shell.js?v=20261016c"></script>
 <script>
 EmporioShell.renderTopbar("/mapa/");
 
@@ -722,7 +730,7 @@ document.querySelectorAll("[data-close]").forEach(function (b) {
     b.textContent = p.classList.contains("closed") ? (left ? "›" : "‹") : (left ? "‹" : "›");
   });
   // Em tela pequena os painéis começam recolhidos para não cobrir o mapa.
-  if (window.innerWidth <= 820) b.click();
+  if (window.innerWidth <= 820 || window.innerHeight <= 520) b.click();
 });
 function chips(id, set, items) {
   const el = document.getElementById(id);

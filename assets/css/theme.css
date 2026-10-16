@@ -65,3 +65,27 @@ html.embed #topbar-root, html.embed #footer-root, html.embed .site-footer, html.
 html.embed .painel { grid-template-columns: 1fr; min-height: 0; }
 html.embed body { background: var(--bg); }
 html.embed .page-wrap { padding-top: 26px; }
+
+/* ---- Responsivo: qualquer celular ou tela, em pé ou deitado ---- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+img, svg, video, canvas, iframe { max-width: 100%; }
+/* Itens de grade e de flex podem encolher abaixo do conteúdo (senão um texto longo empurra o card para fora da tela). */
+.grid2 > *, .grid3 > *, .cols2 > *, .feature-grid > *, .stats > *, .kpis > *, .gcards > *, .hl > *, .stats8 > * { min-width: 0; }
+h1, h2, h3, h4, p, li, td, th, label, .card, .subtitle { overflow-wrap: break-word; }
+/* Respeita o recorte da câmera e as bordas arredondadas em celular deitado. */
+.page-wrap { padding-left: max(32px, env(safe-area-inset-left)); padding-right: max(32px, env(safe-area-inset-right)); }
+.topbar { padding-left: max(32px, env(safe-area-inset-left)); padding-right: max(32px, env(safe-area-inset-right)); }
+@media (max-width: 700px) {
+  .page-wrap { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .topbar { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .row { flex-wrap: wrap; }
+  .btn { white-space: normal; text-align: center; }
+  .tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex-shrink: 0; }
+  input, select, textarea { font-size: 16px; }   /* evita o zoom automático do iPhone ao tocar no campo */
+}
+/* Celular deitado (tela baixa): o topo não fica preso, para sobrar espaço para o conteúdo. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .topbar { position: static; }
+}
