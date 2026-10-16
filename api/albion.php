@@ -304,7 +304,7 @@ switch ($r) {
             $pdo = db($reg);
             $out[$reg] = ['batalhas' => (int)$pdo->query('SELECT COUNT(*) FROM battles')->fetchColumn(),
                 'desde' => (int)meta_get($pdo, 'since', 0), 'ultima' => (int)meta_get($pdo, 'last_ok', 0),
-                'historico' => (int)meta_get($pdo, 'backfill_off', 0)];
+                'historico' => (int)meta_get($pdo, 'backfill_off', 0), 'etapa' => meta_get($pdo, 'etapa', '')];
         }
         echo json_encode($out);
         break;

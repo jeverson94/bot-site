@@ -93,7 +93,7 @@ function ingest($pdo, $arr) {
 }
 
 // Busca páginas da lista de batalhas em paralelo, sem cache em disco (o banco é o cache).
-function fetch_pages($s, $offsets, $timeout = 35) {
+function fetch_pages($s, $offsets, $timeout = 30) {
     $mh = curl_multi_init();
     $hs = [];
     foreach ($offsets as $o) {
@@ -129,7 +129,7 @@ function fetch_retry($s, $offs, &$stats) {
         $limited = false;
         foreach (array_slice($GLOBALS['coleta_erros'] ?? [], $before) as $e) if (substr($e, -4) === ':429') $limited = true;
         sleep($limited ? 6 : 1);
-        $again = fetch_pages($s, $miss, 40);
+        $again = fetch_pages($s, $miss, 30);
         foreach ($again as $o => $a) $pages[$o] = $a;
         $stats['repetidas'] = ($stats['repetidas'] ?? 0) + count($miss);
     }
@@ -151,6 +151,7 @@ function collect($s, $force = false) {
     $stats = ['novas' => 0, 'paginas' => 0, 'falhas' => 0];
     $newest = (int)$pdo->query('SELECT MAX(t) FROM battles')->fetchColumn();
 
+    meta_set($pdo, 'etapa', 'novidades ' . date('H:i:s'));
     // 1) Novidades: avança de 4 em 4 páginas até alcançar o que já estava salvo (com 30 min de folga para lutas em andamento).
     for ($off = 0; $off <= MAX_OFFSET && microtime(true) - $t0 < 60; $off += 200) {
         $pages = fetch_retry($s, range($off, min(MAX_OFFSET, $off + 150), 50), $stats);
@@ -165,8 +166,9 @@ function collect($s, $force = false) {
         if (($reached && !$failed) || !$newest) break;
     }
 
+    meta_set($pdo, 'etapa', 'historico ' . round(microtime(true) - $t0) . 's');
     // 2) Histórico: continua de onde parou, em blocos de 8 páginas, enquanto houver tempo.
-    while (microtime(true) - $t0 < 100) {
+    while (microtime(true) - $t0 < 90) {
         $bf = (int)meta_get($pdo, 'backfill_off', 0);
         if ($bf >= MAX_OFFSET) break;
         $from = max($bf, 200);
@@ -189,6 +191,7 @@ function collect($s, $force = false) {
     }
     $stats['historico'] = (int)meta_get($pdo, 'backfill_off', 0) >= MAX_OFFSET ? 'completo' : 'coletando';
 
+    meta_set($pdo, 'etapa', 'limpeza ' . round(microtime(true) - $t0) . 's');
     // 3) Limpeza diária do que passou do prazo.
     if (time() - (int)meta_get($pdo, 'last_prune', 0) > 86400) {
         $cut = time() - KEEP_DAYS * 86400;
@@ -199,6 +202,7 @@ function collect($s, $force = false) {
     }
     meta_set($pdo, 'since', (int)$pdo->query('SELECT MIN(t) FROM battles')->fetchColumn());
     meta_set($pdo, 'last_ok', time());
+    meta_set($pdo, 'etapa', 'ok ' . round(microtime(true) - $t0) . 's ' . json_encode($stats));
     $stats['segundos'] = round(microtime(true) - $t0, 1);
     if (!empty($GLOBALS['coleta_erros'])) $stats['erros'] = array_slice($GLOBALS['coleta_erros'], 0, 12);
     flock($lockf, LOCK_UN);
