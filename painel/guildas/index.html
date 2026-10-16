@@ -4,67 +4,353 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guildas | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/painel.css?v=20261015f">
-
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016b">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016b">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261016b">
+<style>
+  .per { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 6px; }
+  .per .lab { font-weight: 700; margin-left: 4px; }
+  .cal-wrap { position: relative; }
+  .cal { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 290px; background: var(--card); border: 1px solid rgba(226,188,98,.3); border-radius: 12px; padding: 12px; box-shadow: var(--shadow); display: none; }
+  .cal.open { display: block; }
+  .cal-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 700; text-transform: capitalize; }
+  .cal-h button { background: none; border: 1px solid var(--card-border); color: var(--text); border-radius: 7px; width: 28px; height: 28px; cursor: pointer; }
+  .cal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 12.5px; }
+  .cal-g span { color: var(--text-dim); font-size: 11px; padding: 4px 0; }
+  .cal-g button { background: none; border: 0; color: var(--text); border-radius: 7px; padding: 7px 0; cursor: pointer; font: inherit; }
+  .cal-g button:hover:not(:disabled) { background: rgba(255,255,255,.06); }
+  .cal-g button:disabled { color: rgba(255,255,255,.18); cursor: default; }
+  .cal-g button.in { background: var(--gold-soft); border-radius: 0; }
+  .cal-g button.edge { background: var(--gold); color: #1a1408; font-weight: 700; border-radius: 7px; }
+  .cal-g button.has::after { content: ""; display: block; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); margin: 2px auto 0; }
+  .cal-f { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: var(--text-dim); gap: 8px; }
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 14px; }
+  .kpi b { display: block; font-size: 21px; font-variant-numeric: tabular-nums; }
+  .kpi span { font-size: 11.5px; color: var(--text-dim); }
+  .kpi small { display: block; font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
+  .kd-up { color: #6fcf8e !important; } .kd-down { color: #e66a6a !important; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .hl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .hl-c { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .hl-c img { width: 46px; height: 46px; flex-shrink: 0; }
+  .hl-c .ph { width: 46px; height: 46px; border-radius: 10px; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
+  .hl-c div { min-width: 0; }
+  .hl-c em { font-style: normal; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .8px; }
+  .hl-c b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hl-c span { font-size: 12.5px; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .fight { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; margin-bottom: 8px; }
+  .fight-h { display: grid; grid-template-columns: 110px 1fr 90px 120px 1.2fr 24px; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; font-size: 13px; }
+  .fight-h:hover { background: rgba(255,255,255,.02); }
+  .fight-h .vs { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fight-h .mvp { font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fight-h .mvp b { color: var(--gold); }
+  .fight-b { display: none; padding: 4px 14px 14px; border-top: 1px solid rgba(255,255,255,.04); }
+  .fight.open .fight-b { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 70px; gap: 8px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+  .bar-row .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .bar-row .bar i { display: block; height: 100%; border-radius: 4px; background: var(--gold); }
+  .bar-row .bar i.red { background: #e66a6a; }
+  .bar-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ic { position: relative; width: 52px; height: 52px; }
+  .ic img { width: 52px; height: 52px; }
+  .ic b { position: absolute; right: 2px; bottom: 2px; font-size: 11px; background: rgba(10,13,20,.85); border-radius: 5px; padding: 0 4px; }
+  .ptable th { cursor: pointer; user-select: none; white-space: nowrap; }
+  .ptable th.on { color: var(--gold); }
+  .ptable td img { width: 30px; height: 30px; vertical-align: middle; }
+  .srv { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .srv:last-child { border-bottom: 0; }
+  .note { font-size: 12px; color: var(--text-dim); }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } .hl { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 760px) {
+    .cols2, .fight.open .fight-b { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, 1fr); } .hl { grid-template-columns: 1fr; }
+    .fight-h { grid-template-columns: 1fr 80px 24px; } .fight-h .vs, .fight-h .mvp, .fight-h .fame { display: none; }
+    .srv { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <div class="painel">
   <aside class="painel-side" id="painel-side"></aside>
   <main class="painel-main">
-
-    <div class="painel-head"><div><h1>Guildas</h1><p class="subtitle" style="margin:0">A guilda do jogo que você acompanha e as guildas do Discord ligadas à sua conta.</p></div></div>
+    <div class="painel-head"><div><h1>Guildas</h1><p class="subtitle" style="margin:0">Status completo da guilda do jogo: abates, mortes, lutas, rivais, fama, armas e o desempenho de cada jogador.</p></div></div>
     <div id="notice"></div>
     <div id="gbar"></div>
-    <div id="ov"></div>
+    <div id="dash"></div>
     <div class="section"><div class="card" id="discord"><div class="state"><span class="spin"></span>Verificando login...</div></div></div>
   </main>
 </div>
-<script src="/assets/js/config.js?v=20261015f"></script>
-<script src="/assets/js/auth.js?v=20261015f"></script>
-<script src="/assets/js/common.js?v=20261015f"></script>
-<script src="/assets/js/shell.js?v=20261015f"></script>
-<script src="/assets/js/painel.js?v=20261015f"></script>
-<script src="/assets/js/minhasbuilds.js?v=20261015f"></script>
+<script src="/assets/js/config.js?v=20261016b"></script>
+<script src="/assets/js/auth.js?v=20261016b"></script>
+<script src="/assets/js/common.js?v=20261016b"></script>
+<script src="/assets/js/shell.js?v=20261016b"></script>
+<script src="/assets/js/painel.js?v=20261016b"></script>
+<script src="/assets/js/graficos.js?v=20261016b"></script>
 <script>
 EmporioShell.renderTopbar("/painel/");
 EmporioPainel.render("/painel/guildas/");
 const P = window.EmporioPainel;
+const A = window.EmporioAuth;
 const $ = function (id) { return document.getElementById(id); };
+const DAY = 86400;
+let G = null, DB = null, D = null, per = { mode: "7", from: 0, to: 0 }, sortKey = "kf", timer = null, showF = 10, showP = 25;
 
 if (new URLSearchParams(location.search).get("erro") === "painel_legado_expirado") {
   $("notice").innerHTML = '<div class="card" style="margin-bottom:18px;border-color:rgba(226,188,98,.4)"><b>O painel antigo foi desativado.</b><p class="muted small" style="margin:6px 0 0">O endereço que você abriu era do painel anterior. As páginas novas ficam aqui.</p></div>';
 }
-P.guildBar($("gbar"), async function (G) {
-  if (!G) { $("ov").innerHTML = '<div class="card"><h2>Escolha a sua guilda</h2><p class="muted">Busque a guilda pelo nome na barra acima. Ela fica ligada ao painel e é usada em Membros, Batalhas, Regears, Saldo e Presença.</p></div>'; return; }
-  $("ov").innerHTML = Emp.loading("Buscando " + G.n + "...");
-  try {
-    const r = await Promise.all([Emp.albion("guild", { s: G.s, id: G.id }), Emp.albion("members", { s: G.s, id: G.id }), P.guildBattles(G, 1).catch(function () { return []; })]);
-    const d = r[0], mem = r[1], bt = r[2];
-    const top = mem.slice().sort(function (a, b) { return b.kf - a.kf; }).slice(0, 8);
-    let k = 0, dd = 0, f = 0;
-    bt.forEach(function (b) { const s = P.guildSide(b, G.id); k += s.k; dd += s.d; f += s.f; });
-    $("ov").innerHTML =
-      '<div class="card"><div class="row between wrap"><div><h2 style="margin:0">' + Emp.esc(d.Name) + '</h2><span class="muted small">' + (d.AllianceTag ? "Aliança [" + Emp.esc(d.AllianceTag) + "] · " : "") + "Fundada por " + Emp.esc(d.FounderName || "?") + (d.Founded ? " em " + new Date(d.Founded).toLocaleDateString("pt-BR") : "") + "</span></div></div>" +
-      '<div class="stats" style="margin-top:14px"><div class="stat"><b>' + (d.MemberCount || mem.length) + '</b><span>Membros</span></div><div class="stat"><b>' + Emp.num(d.killFame) + '</b><span>Fama de abate total</span></div><div class="stat"><b>' + Emp.num(d.DeathFame) + '</b><span>Fama de morte total</span></div>' +
-      '<div class="stat"><b>' + bt.length + '</b><span>Batalhas recentes</span></div><div class="stat"><b>' + k + " / " + dd + '</b><span>Abates e mortes nelas</span></div></div></div>' +
-      '<div class="grid2 section"><div class="card"><h2>Maiores matadores</h2>' + top.map(function (m, i) {
-        return '<div class="row between" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span><span class="muted small">' + (i + 1) + ".</span> <b>" + Emp.esc(m.n) + '</b></span><span class="muted">' + Emp.num(m.kf) + "</span></div>";
-      }).join("") + '<a class="small" href="/painel/guildas/membros/">Ver todos os membros</a></div>' +
-      '<div class="card"><h2>Atalhos da guilda</h2><div class="feature-grid" style="grid-template-columns:1fr 1fr">' +
-      [["/painel/guildas/batalhas/", "Batalhas", "Lutas recentes e resultado"], ["/painel/guildas/regears/", "Regears", "Quem morreu e quanto repor"], ["/painel/guildas/saldo/", "Saldo", "Loot split e saldo de cada membro"], ["/painel/presenca/", "Presença", "Quem apareceu nas batalhas"]].map(function (x) {
-        return '<a class="feature-card" href="' + x[0] + '" style="padding:14px"><h3 style="font-size:15px">' + x[1] + "</h3><p>" + x[2] + "</p></a>";
-      }).join("") + "</div></div></div>";
-  } catch (e) { $("ov").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos."); }
-});
-window.EmporioAuth.me().then(function (u) {
-  if (!u) { $("discord").innerHTML = '<h2>Guildas do Discord</h2><p class="muted">Entre com o Discord para ver as guildas ligadas à sua conta pelo bot.</p><a class="btn" href="' + window.EmporioAuth.loginUrl() + '">Entrar com Discord</a>'; return; }
-  const gs = Array.isArray(u.guilds) ? u.guilds : [];
-  $("discord").innerHTML = '<h2>Guildas do Discord</h2>' + (gs.length ? gs.map(function (g) { return '<div class="row" style="padding:6px 0"><b>' + Emp.esc(g.name || g.nome || g.id) + "</b></div>"; }).join("") : '<p class="muted">Nenhum servidor do Discord com o bot ligado à sua conta ainda.</p>');
-});
+Emp.items().then(function (d) { DB = d; if (D) render(); });
 
+function nm(id) { return DB && id ? Emp.itemName(DB, id) : (id || ""); }
+function img(id, size) { return '<img loading="lazy" src="' + Emp.icon(id) + '" alt="" title="' + Emp.esc(nm(id)) + '" onerror="this.style.visibility=\'hidden\'"' + (size ? ' width="' + size + '" height="' + size + '"' : "") + ">"; }
+function kd(k, d) { const v = d ? k / d : k; return '<span class="' + (v >= 1 ? "kd-up" : "kd-down") + '">' + (v >= 1 ? "▲ " : "▼ ") + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</span>"; }
+function fmtDay(t) { return new Date(t * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+
+// ---------- período: atalhos e calendário (um dia ou um intervalo) ----------
+function setPreset(m) {
+  const now = Math.floor(Date.now() / 1000);
+  per.mode = m;
+  per.to = now;
+  per.from = now - (m === "1" ? DAY : m === "7" ? 7 * DAY : 30 * DAY);
+}
+setPreset("7");
+let calMonth = new Date(); calMonth.setDate(1);
+let pickA = null;
+function localDayStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function perLabel() {
+  if (per.mode !== "c") return per.mode === "1" ? "Últimas 24 horas" : per.mode === "7" ? "Últimos 7 dias" : "Últimos 30 dias";
+  const a = new Date(per.from * 1000), b = new Date((per.to - 1) * 1000);
+  const f = function (d) { return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); };
+  return a.toDateString() === b.toDateString() ? "Dia " + f(a) : f(a) + " a " + f(b);
+}
+function drawCal() {
+  const box = $("cal"); if (!box) return;
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate();
+  const today = localDayStart(new Date()), minDay = new Date(today.getTime() - 30 * DAY * 1000);
+  const selA = per.mode === "c" ? localDayStart(new Date(per.from * 1000)) : null, selB = per.mode === "c" ? localDayStart(new Date((per.to - 1) * 1000)) : null;
+  let h = '<div class="cal-h"><button type="button" id="cal-p">‹</button><span>' + first.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) + '</span><button type="button" id="cal-n">›</button></div><div class="cal-g">' +
+    ["D", "S", "T", "Q", "Q", "S", "S"].map(function (x) { return "<span>" + x + "</span>"; }).join("");
+  for (let i = 0; i < first.getDay(); i++) h += "<i></i>";
+  for (let d = 1; d <= days; d++) {
+    const dt = new Date(y, m, d), dis = dt > today || dt < minDay;
+    let cls = "";
+    const ref = pickA || null;
+    if (ref && dt.getTime() === ref.getTime()) cls = "edge";
+    else if (!pickA && selA && dt >= selA && dt <= selB) cls = (dt.getTime() === selA.getTime() || dt.getTime() === selB.getTime()) ? "edge" : "in";
+    h += '<button type="button" data-d="' + dt.getTime() + '" class="' + cls + '"' + (dis ? " disabled" : "") + ">" + d + "</button>";
+  }
+  h += '</div><div class="cal-f"><span>' + (pickA ? "Agora clique no último dia (ou no mesmo para um dia só)." : "Clique num dia, depois no último dia do intervalo.") + '</span><button type="button" class="btn secondary" id="cal-x" style="padding:4px 10px">Fechar</button></div>';
+  box.innerHTML = h;
+  $("cal-p").onclick = function (e) { e.stopPropagation(); calMonth.setMonth(calMonth.getMonth() - 1); drawCal(); };
+  $("cal-n").onclick = function (e) { e.stopPropagation(); calMonth.setMonth(calMonth.getMonth() + 1); drawCal(); };
+  $("cal-x").onclick = function (e) { e.stopPropagation(); box.classList.remove("open"); pickA = null; };
+  box.querySelectorAll("[data-d]").forEach(function (b) {
+    b.onclick = function (e) {
+      e.stopPropagation();
+      const dt = new Date(+b.dataset.d);
+      if (!pickA) { pickA = dt; drawCal(); return; }
+      const a = pickA < dt ? pickA : dt, z = pickA < dt ? dt : pickA;
+      pickA = null;
+      per.mode = "c";
+      per.from = Math.floor(a.getTime() / 1000);
+      per.to = Math.min(Math.floor(Date.now() / 1000), Math.floor(z.getTime() / 1000) + DAY);
+      box.classList.remove("open");
+      load();
+    };
+  });
+}
+function perBar() {
+  return '<div class="per"><div class="tabs" id="pres">' + [["1", "24 horas"], ["7", "7 dias"], ["30", "30 dias"]].map(function (x) {
+    return '<button class="tab' + (per.mode === x[0] ? " on" : "") + '" data-m="' + x[0] + '">' + x[1] + "</button>";
+  }).join("") + '</div><div class="cal-wrap"><button class="btn secondary" id="cal-b" type="button">📅 Escolher dias</button><div class="cal" id="cal"></div></div><span class="lab">' + perLabel() + '</span></div>';
+}
+function wirePer() {
+  document.querySelectorAll("#pres [data-m]").forEach(function (b) { b.onclick = function () { setPreset(b.dataset.m); load(); }; });
+  $("cal-b").onclick = function (e) { e.stopPropagation(); const c = $("cal"); c.classList.toggle("open"); if (c.classList.contains("open")) drawCal(); };
+}
+document.addEventListener("click", function (e) { const c = $("cal"); if (c && c.classList.contains("open") && !e.target.closest(".cal-wrap")) { c.classList.remove("open"); pickA = null; } });
+
+// ---------- dashboard ----------
+function kpi(v, l, extra) { return '<div class="kpi"><b>' + v + "</b><span>" + l + "</span>" + (extra ? "<small>" + extra + "</small>" : "") + "</div>"; }
+function hlCard(t, h, unit, fmt) {
+  if (!h) return "";
+  return '<div class="hl-c">' + (h.w ? img(h.w) : '<div class="ph">' + Emp.esc(h.n.slice(0, 1).toUpperCase()) + "</div>") + "<div><em>" + t + "</em><b>" + Emp.esc(h.n) + "</b><span>" + (fmt ? fmt(h.v) : Emp.int(h.v)) + " " + unit + "</span></div></div>";
+}
+function bars(list, max, color, fmt) {
+  return list.map(function (x) {
+    return '<div class="bar-row"><span class="nm" title="' + Emp.esc(x[0]) + '">' + Emp.esc(x[0]) + '</span><div class="bar"><i class="' + (color || "") + '" style="width:' + Math.max(2, x[1] / Math.max(1, max) * 100) + '%"></i></div><span class="num">' + (fmt ? fmt(x[1]) : Emp.int(x[1])) + "</span></div>";
+  }).join("");
+}
+function iconGrid(list) { return '<div class="icons">' + list.map(function (x) { return '<div class="ic">' + img(x[0]) + "<b>" + Emp.num(x[1]) + "</b></div>"; }).join("") + "</div>"; }
+
+function playersTable() {
+  const cols = [["n", "Jogador"], ["b", "Lutas"], ["k", "Abates"], ["a", "Assist."], ["d", "Mortes"], ["kd", "K/D"], ["kf", "Fama PvP"], ["dmg", "Dano"], ["heal", "Cura"], ["ip", "IP médio"], ["pve", "Fama PvE"], ["gat", "Coleta"], ["craft", "Craft"]];
+  const val = function (p, k) { return k === "kd" ? (p.d ? p.k / p.d : p.k) : k === "n" ? p.n.toLowerCase() : (p[k] == null ? -1 : p[k]); };
+  const all = D.jogadores.slice().sort(function (a, b) { const x = val(a, sortKey), y = val(b, sortKey); return sortKey === "n" ? (x < y ? -1 : 1) : y - x; });
+  const list = all.slice(0, showP);
+  const famePer = D.fotos && D.fotos[1] > D.fotos[0];
+  return '<div class="table-wrap"><table class="table ptable"><thead><tr><th></th>' + cols.map(function (c) { return '<th data-k="' + c[0] + '" class="' + (c[0] === "n" ? "" : "num ") + (sortKey === c[0] ? "on" : "") + '">' + c[1] + "</th>"; }).join("") + "</tr></thead><tbody>" +
+    list.map(function (p) {
+      const f = function (k, t) { return p[k] == null ? '<span class="muted">-</span>' : Emp.num(famePer ? p[k] : p[t]); };
+      return "<tr><td>" + (p.w ? img(p.w) : "") + "</td><td><b>" + Emp.esc(p.n) + '</b></td><td class="num">' + p.b + '</td><td class="num">' + p.k + '</td><td class="num">' + p.a + '</td><td class="num">' + p.d + '</td><td class="num">' + (p.k || p.d ? kd(p.k, p.d) : "") +
+        '</td><td class="num">' + Emp.num(p.kf) + '</td><td class="num">' + Emp.num(p.dmg) + '</td><td class="num">' + Emp.num(p.heal) + '</td><td class="num">' + (p.ip || "") + '</td><td class="num">' + f("pve", "tpve") + '</td><td class="num">' + f("gat", "tgat") + '</td><td class="num">' + f("craft", "tcraft") + "</td></tr>";
+    }).join("") + "</tbody></table></div>" + (all.length > showP ? '<div class="pager"><button class="btn secondary" id="more-p">Mostrar todos os ' + all.length + " jogadores</button></div>" : "");
+}
+
+function render() {
+  const d = D, t = d.tot;
+  if (!d.acompanhada) { $("dash").innerHTML = perBar() + Emp.loading("Começando a acompanhar " + G.n + "..."); wirePer(); return; }
+  const famePer = d.fotos && d.fotos[1] > d.fotos[0];
+  const fame = famePer ? d.fama : null, ft = d.fama_total || {};
+  const fameNote = famePer ? "no período" : "acumulada no jogo";
+  const status = '<p class="note" style="margin:0 0 14px"><span class="live-dot"></span>Atualizado ' + Emp.ago(d.atualizado * 1000) + " · acompanhando desde " + new Date(d.desde * 1000).toLocaleDateString("pt-BR") +
+    (d.primeiro ? " · dados a partir de " + Emp.dateTime(new Date(d.primeiro * 1000).toISOString()) : "") + (d.pendentes ? " · " + d.pendentes + " lutas ainda sendo lidas" : "") + (d.historico !== "completo" ? " · buscando o histórico de até 30 dias" : "") + "</p>";
+  const labels = d.series.map(function (_, i) {
+    const tt = d.start + i * d.step;
+    return d.step === 3600 ? new Date(tt * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit" }) + "h" : fmtDay(tt);
+  });
+  const every = Math.max(1, Math.ceil(labels.length / 10));
+  const hd = d.destaques;
+  const maxR = Math.max(1, Math.max.apply(null, d.rivais.map(function (r) { return Math.max(r.k, r.d); }).concat([1])));
+  $("dash").innerHTML = perBar() + status +
+    '<div class="kpis">' +
+      kpi(Emp.int(t.k), "Abates") + kpi(Emp.int(t.d), "Mortes") + kpi(kd(t.k, t.d), "K/D") + kpi(Emp.num(t.kf), "Fama de abate") + kpi(Emp.num(t.df), "Fama perdida em mortes") + kpi(Emp.int(t.b), "Lutas") +
+      kpi(Emp.int(t.ativos), "Membros que lutaram") + kpi(Emp.num(t.dmg), "Dano nos abates") + kpi(Emp.num(t.heal), "Cura nos abates") +
+      kpi(Emp.num(fame ? fame.pve : ft.pve), "Fama de PvE", fameNote) + kpi(Emp.num(fame ? fame.gat : ft.gat), "Fama de coleta", fameNote) + kpi(Emp.num(fame ? fame.craft : ft.craft), "Fama de craft", fameNote) +
+    "</div>" +
+    '<div class="section cols2"><div class="card"><h2>Abates e mortes</h2><div class="legend"><span><i style="background:#e2bc62"></i>Abates</span><span><i style="background:#7c9bd8"></i>Mortes</span></div><div class="gx-box" id="c-k"></div><div class="gx-box" id="c-d" style="margin-top:8px"></div></div>' +
+    '<div class="card"><h2>Fama de abate</h2><div class="gx-box" id="c-f"></div><h3 style="margin:16px 0 6px">Horário das mortes e abates (UTC)</h3><div class="gx-box" id="c-h"></div></div></div>' +
+    '<div class="section"><h2>Destaques</h2><div class="hl">' + hlCard("Mais abates", hd.abates, "abates") + hlCard("Mais dano", hd.dano, "de dano", Emp.num) + hlCard("Mais cura", hd.cura, "de cura", Emp.num) +
+      hlCard("Mais fama PvP", hd.fama, "de fama", Emp.num) + hlCard("Mais assistências", hd.assist, "assistências") + hlCard("Mais mortes", hd.mortes, "mortes") +
+      (famePer ? hlCard("Mais PvE", hd.pve, "de fama", Emp.num) + hlCard("Mais craft", hd.craft, "de fama", Emp.num) + hlCard("Mais coleta", hd.coleta, "de fama", Emp.num) : "") + "</div></div>" +
+    '<div class="section"><h2>Lutas</h2><p class="subtitle">Clique numa luta para ver o dano de cada um e as armas usadas. O maior dano e quem mais matou ficam em destaque.</p>' +
+      (d.lutas.length ? d.lutas.slice(0, showF).map(function (b, i) {
+        return '<div class="fight" id="f' + i + '"><div class="fight-h" data-i="' + i + '"><span class="muted">' + Emp.dateTime(new Date(b.t * 1000).toISOString()) + '</span><span class="vs">contra ' + (b.enemies.length ? b.enemies.map(function (e) { return Emp.esc(e[0]); }).join(", ") : "-") + "</span><span>" + b.k + " / " + b.d + ' <span class="muted small">A/M</span></span><span class="fame">' + Emp.num(b.kf) + ' <span class="muted small">fama</span></span>' +
+          '<span class="mvp">' + (b.dmg && b.dmg[1] > 0 ? "Dano: <b>" + Emp.esc(b.dmg[0]) + "</b> " + Emp.num(b.dmg[1]) + " · " : "") + (b.killer ? "Abates: <b>" + Emp.esc(b.killer[0]) + "</b> " + b.killer[1] : "") + "</span><span>▾</span></div>" +
+          '<div class="fight-b"><div><h3 style="margin:10px 0 6px">Dano</h3>' + (b.dmgs.length && b.dmgs[0][1] > 0 ? bars(b.dmgs, b.dmgs[0][1], "", Emp.num) : '<p class="note">Sem dano registrado (a guilda só morreu nessa luta).</p>') +
+          (b.healer ? '<p class="note">Mais cura: <b>' + Emp.esc(b.healer[0]) + "</b> " + Emp.num(b.healer[1]) + "</p>" : "") + '<p class="note">' + b.n + ' membros na luta · <a href="/batalhas/' + b.id + "?s=" + G.s + '">abrir a batalha completa</a></p></div>' +
+          '<div><h3 style="margin:10px 0 6px">Armas da guilda</h3>' + iconGrid(b.w) + "</div></div></div>";
+      }).join("") + (d.lutas.length > showF ? '<div class="pager"><button class="btn secondary" id="more-f">Mostrar mais lutas (' + (d.lutas.length - showF) + ")</button></div>" : "") : '<p class="muted">Nenhuma luta no período.</p>') + "</div>" +
+    '<div class="section cols2"><div class="card"><h2>Guildas enfrentadas</h2><div class="legend"><span><i style="background:#e2bc62"></i>Abates em cima delas</span><span><i style="background:#e66a6a"></i>Mortes para elas</span></div>' +
+      (d.rivais.length ? d.rivais.slice(0, 12).map(function (r) {
+        return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><div class="row between"><b>' + Emp.esc(r.n) + (r.a ? ' <span class="muted small">[' + Emp.esc(r.a) + "]</span>" : "") + '</b><span class="small">' + kd(r.k, r.d) + ' · <span class="muted">' + r.b + " lutas</span></span></div>" +
+          bars([["Abates", r.k]], maxR) + bars([["Mortes", r.d]], maxR, "red") + "</div>";
+      }).join("") : '<p class="muted">Ninguém no período.</p>') + "</div>" +
+      '<div class="card"><h2>Armas mais usadas pela guilda</h2>' + iconGrid(d.armas) + '<h3 style="margin:16px 0 8px">Armas que mais mataram a guilda</h3>' + iconGrid(d.armas_inimigas) + "</div></div>" +
+    '<div class="section"><h2>Jogadores</h2><p class="subtitle">Clique no título de uma coluna para ordenar. Dano e cura contam o que cada um fez nos abates da guilda. Fama de PvE, coleta e craft ' + (famePer ? "é a feita no período." : "é a acumulada no jogo até o período ter duas fotos dos membros.") + '</p><div id="ptab"></div></div>' +
+    '<div class="section cols2"><div class="card"><h2>O que os inimigos abatidos carregavam</h2><p class="note">Equipamento e mochila de quem a guilda matou. Parte disso cai no chão como loot; a API do Albion não diz quem pegou cada item.</p>' + iconGrid(d.loot) + "</div>" +
+      '<div class="card"><h2>O que a guilda perdeu</h2><p class="note">Equipamento e mochila dos membros que morreram.</p>' + iconGrid(d.perdido) + "</div></div>";
+  $("ptab").innerHTML = playersTable();
+  $("ptab").onclick = function (e) {
+    if (e.target.id === "more-p") { showP = 1000; $("ptab").innerHTML = playersTable(); return; }
+    const th = e.target.closest("th[data-k]"); if (!th) return; sortKey = th.dataset.k; $("ptab").innerHTML = playersTable();
+  };
+  if ($("more-f")) $("more-f").onclick = function () { showF += 20; const y = window.scrollY; render(); window.scrollTo(0, y); };
+  document.querySelectorAll(".fight-h").forEach(function (h) { h.onclick = function () { $("f" + h.dataset.i).classList.toggle("open"); }; });
+  const lab = function (i) { return (d.step === 3600 ? new Date((d.start + i * d.step) * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : fmtDay(d.start + i * d.step)) + "<br>"; };
+  Graficos.bars($("c-k"), d.series.map(function (x) { return x.k; }), { h: 80, unit: "abates", label: lab });
+  Graficos.bars($("c-d"), d.series.map(function (x) { return x.d; }), { h: 80, unit: "mortes", label: lab, color: "#7c9bd8", labels: labels.map(function (x, i) { return i % every ? "" : x; }) });
+  Graficos.bars($("c-f"), d.series.map(function (x) { return x.kf; }), { h: 110, unit: "de fama", label: lab, fmt: Emp.num, labels: labels.map(function (x, i) { return i % every ? "" : x; }) });
+  Graficos.bars($("c-h"), d.hours, { h: 70, unit: "eventos", label: function (i) { return String(i).padStart(2, "0") + "h UTC<br>"; }, labels: d.hours.map(function (_, i) { return i % 3 ? "" : String(i).padStart(2, "0"); }) });
+  wirePer();
+}
+
+let seq = 0;
+function load() {
+  if (!G) return;
+  const my = ++seq;
+  if (!D) $("dash").innerHTML = perBar() + Emp.loading("Montando o painel de " + G.n + "...");
+  else $("dash").style.opacity = ".6";
+  wirePer();
+  Emp.albion("painelguilda", { s: G.s, id: G.id, from: per.from, to: per.to }).then(function (d) {
+    if (my !== seq) return;
+    $("dash").style.opacity = "";
+    D = d; render();
+    clearTimeout(timer);
+    // Guilda recém-adicionada: recarrega sozinho enquanto os primeiros dados chegam; depois, a cada 2 minutos.
+    timer = setTimeout(function () { if (!document.hidden) { if (per.mode !== "c") setPreset(per.mode); load(); } }, d.acompanhada && d.tot.k + d.tot.d > 0 ? 120000 : 20000);
+  }).catch(function (e) {
+    if (my !== seq) return;
+    $("dash").style.opacity = "";
+    $("dash").innerHTML = perBar() + Emp.emptyState(Emp.esc(e.message));
+    wirePer();
+  });
+}
+
+function choose(g) {
+  G = g; D = null;
+  if (!G) { $("dash").innerHTML = '<div class="card"><h2>Adicione a sua guilda</h2><p class="muted">Busque a guilda pelo nome na barra acima, ou vincule ela ao seu servidor do Discord logo abaixo (ou com <code>/guilda vincular</code> no Discord). Assim que ela for adicionada, o site passa a guardar todos os abates, mortes, lutas e a fama de cada membro, e o painel aparece aqui.</p></div>'; return; }
+  // Liga o acompanhamento (o site começa a guardar kills, mortes e membros dessa guilda).
+  Emp.albion("acompanhar", { s: G.s, id: G.id, n: G.n }).catch(function () {}).then(load);
+}
+P.guildBar($("gbar"), choose);
+
+// ---------- servidores do Discord e a guilda do jogo de cada um ----------
+const REG = { am: "Américas", eu: "Europa", as: "Ásia" };
+async function servers() {
+  const box = $("discord");
+  const u = await A.me();
+  if (!u) { box.innerHTML = '<h2>Servidores do Discord</h2><p class="muted">Entre com o Discord para ligar a guilda do jogo ao seu servidor. Assim todos os admins do servidor veem o mesmo painel, e o bot usa a mesma guilda.</p><a class="btn" href="' + A.loginUrl() + '">Entrar com Discord</a>'; return; }
+  let list = null;
+  try {
+    const r = await A.apiFetch("/api/guilda-albion");
+    if (r.ok) list = (await r.json()).servers;
+  } catch (e) {}
+  if (!list) {
+    // Backend ainda sem a rota nova: mostra os servidores do login, sem o vínculo.
+    list = (u.admin_guilds || []).filter(function (g) { return !g.personal; }).map(function (g) { return { guild_id: g.id, name: g.name, admin: true, locked: false }; })
+      .concat((u.locked_guilds || []).map(function (g) { return { guild_id: g.id, name: g.name, admin: true, locked: true }; }));
+    list.forEach(function (x) { x.offline = true; });
+  }
+  if (!list.length) { box.innerHTML = '<h2>Servidores do Discord</h2><p class="muted">Nenhum servidor seu com o bot instalado. Adicione o bot a um servidor onde você é administrador e entre de novo para ele aparecer aqui.</p>'; return; }
+  box.innerHTML = '<h2>Servidores do Discord</h2><p class="note" style="margin:0 0 8px">A guilda do jogo ligada a cada servidor. Quem é admin do servidor pode ligar ou trocar aqui ou no Discord com <code>/guilda vincular</code>.</p>' +
+    list.map(function (x, i) {
+      const a = x.albion;
+      return '<div class="srv"><div><b>' + Emp.esc(x.name || x.guild_id) + "</b>" + (x.locked ? ' <span class="badge">sem plano</span>' : "") + '</div><div>' +
+        (a ? "<b>" + Emp.esc(a.n) + '</b> <span class="muted small">' + (a.a ? "[" + Emp.esc(a.a) + "] · " : "") + REG[a.s] + "</span>" : '<span class="muted">Nenhuma guilda ligada</span>') + "</div><div class=\"row\" style=\"gap:8px;flex-wrap:wrap\">" +
+        (a ? '<button class="btn secondary" data-use="' + i + '">Ver no painel</button>' : "") +
+        (x.admin && !x.offline ? '<div class="pick-wrap" style="min-width:220px"><input class="input" id="sv-q' + i + '" placeholder="' + (a ? "Trocar a guilda" : "Buscar a guilda do jogo") + '" style="width:100%"><div id="sv-o' + i + '"></div></div><select class="select" id="sv-r' + i + '">' +
+          Object.keys(REG).map(function (k) { return '<option value="' + k + '"' + ((a ? a.s : Emp.getRegion()) === k ? " selected" : "") + ">" + REG[k] + "</option>"; }).join("") + "</select>" : "") +
+        (x.admin && a && !x.offline ? '<button class="btn secondary" data-del="' + i + '">Remover</button>' : "") + "</div></div>";
+    }).join("") + (list[0] && list[0].offline ? '<p class="note">O vínculo com o servidor ainda não está disponível. Enquanto isso, use a busca no topo da página ou <code>/guilda vincular</code> no Discord.</p>' : "");
+  list.forEach(function (x, i) {
+    const q = $("sv-q" + i);
+    if (q) P.picker(q, $("sv-o" + i), "guilds", async function (g) {
+      const s = $("sv-r" + i).value;
+      q.disabled = true;
+      try {
+        const r = await A.apiFetch("/api/guilda-albion", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guild_id: x.guild_id, s: s, id: g.id, n: g.n }) });
+        const j = await r.json().catch(function () { return {}; });
+        if (!r.ok || !j.ok) throw new Error(j.erro || "Não foi possível salvar agora");
+        P.setLink("guilda", { id: g.id, n: j.albion.n, s: s });
+        location.reload();
+      } catch (e) { q.disabled = false; alert(e.message); }
+    }, function () { return $("sv-r" + i).value; });
+  });
+  box.querySelectorAll("[data-use]").forEach(function (b) {
+    b.onclick = function () { const a = list[+b.dataset.use].albion; P.setLink("guilda", { id: a.id, n: a.n, s: a.s }); location.reload(); };
+  });
+  box.querySelectorAll("[data-del]").forEach(function (b) {
+    b.onclick = async function () {
+      const x = list[+b.dataset.del];
+      if (!confirm("Remover a guilda " + x.albion.n + " do servidor " + (x.name || "") + "?")) return;
+      await A.apiFetch("/api/guilda-albion?guild_id=" + encodeURIComponent(x.guild_id), { method: "DELETE" });
+      servers();
+    };
+  });
+  // Sem guilda escolhida neste navegador: usa a do primeiro servidor que tiver uma.
+  if (!P.getLink("guilda")) {
+    const first = list.find(function (x) { return x.albion; });
+    if (first) { P.setLink("guilda", { id: first.albion.id, n: first.albion.n, s: first.albion.s }); location.reload(); }
+  }
+}
+servers();
 </script>
 </body>
 </html>

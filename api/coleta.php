@@ -452,3 +452,18 @@ function battle_list($s, $offset, $min, $q) {
     }
     return ['battles' => $out, 'updated' => (int)meta_get($pdo, 'last_ok', 0), 'total' => (int)$pdo->query('SELECT COUNT(*) FROM battles')->fetchColumn()];
 }
+
+// Busca de guilda pelo nome no banco (instantânea). Exatas e começando pelo texto vêm primeiro.
+function guild_search($s, $q) {
+    $pdo = db($s);
+    $q = trim($q);
+    if (preg_match('/^[A-Za-z0-9_-]{22}$/', $q)) {
+        $st = $pdo->prepare('SELECT g id, n, a, last FROM guilds WHERE g = ?');
+        $st->execute([$q]);
+        $one = $st->fetchAll();
+        if ($one) return $one;
+    }
+    $st = $pdo->prepare("SELECT g id, n, a, last FROM guilds WHERE n LIKE ? ORDER BY (LOWER(n) = LOWER(?)) DESC, (n LIKE ?) DESC, last DESC LIMIT 15");
+    $st->execute(["%$q%", $q, "$q%"]);
+    return array_map(function ($r) { $r['last'] = (int)$r['last']; return $r; }, $st->fetchAll());
+}

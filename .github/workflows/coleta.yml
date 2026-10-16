@@ -20,6 +20,7 @@ jobs:
         run: |
           for s in am eu as; do
             curl -s -m 60 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=coletar&s=$s" &
+            curl -s -m 60 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=coletar&s=$s&parte=guildas" &
           done
           wait
           echo

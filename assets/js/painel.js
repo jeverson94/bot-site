@@ -138,24 +138,47 @@
 
   // Busca de guilda ou jogador na API do Albion, com lista de sugestões.
   // kind: "guilds" ou "players". onPick recebe {id, n, extra}.
-  function picker(input, box, kind, onPick) {
-    let timer = null;
+  function picker(input, box, kind, onPick, regionFn) {
+    let timer = null, seq = 0;
     box.classList.add("pick-opts");
+    const region = regionFn || Emp.getRegion;
+    function row(id, n, extra) {
+      return '<div data-id="' + Emp.esc(id) + '" data-n="' + Emp.esc(n) + '" data-x="' + Emp.esc(extra) + '"><b>' + Emp.esc(n) + '</b> <span class="muted">' + Emp.esc(extra) + "</span></div>";
+    }
     input.addEventListener("input", function () {
       clearTimeout(timer);
       const q = input.value.trim();
       if (q.length < 2) { box.classList.remove("open"); return; }
       timer = setTimeout(async function () {
+        const my = ++seq;
+        const found = {};
+        let html = "";
+        // Guildas: primeiro o banco do site (na hora), depois a API oficial completa o que faltar.
+        if (kind === "guilds") {
+          try {
+            const fast = await Emp.albion("buscaguilda", { s: region(), q: q });
+            if (my !== seq) return;
+            fast.forEach(function (x) { found[x.id] = 1; html += row(x.id, x.n, x.a ? "[" + x.a + "]" : ""); });
+            box.innerHTML = (html || "") + '<div class="muted small" id="pk-more">Procurando mais na API do Albion...</div>';
+            box.classList.add("open");
+          } catch (e) {}
+        }
         try {
-          const r = await Emp.albion("search", { s: Emp.getRegion(), q: q });
-          const list = (r[kind] || []).slice(0, 12);
-          box.innerHTML = list.length ? list.map(function (x) {
+          const r = await Emp.albion("search", { s: region(), q: q });
+          if (my !== seq) return;
+          (r[kind] || []).slice(0, 12).forEach(function (x) {
+            if (found[x.Id]) return;
             const extra = kind === "guilds" ? (x.AllianceName ? "[" + x.AllianceName + "]" : "") : (x.GuildName || "Sem guilda");
-            return '<div data-id="' + Emp.esc(x.Id) + '" data-n="' + Emp.esc(x.Name) + '" data-x="' + Emp.esc(extra) + '"><b>' + Emp.esc(x.Name) + '</b> <span class="muted">' + Emp.esc(extra) + "</span></div>";
-          }).join("") : '<div class="muted">Nada encontrado com esse nome neste servidor.</div>';
+            html += row(x.Id, x.Name, extra);
+          });
+          box.innerHTML = html || '<div class="muted">Nada encontrado com esse nome neste servidor.</div>';
           box.classList.add("open");
-        } catch (e) { box.innerHTML = '<div class="muted">' + Emp.esc(e.message) + "</div>"; box.classList.add("open"); }
-      }, 350);
+        } catch (e) {
+          if (my !== seq) return;
+          box.innerHTML = html || '<div class="muted">' + Emp.esc(e.message) + "</div>";
+          box.classList.add("open");
+        }
+      }, 300);
     });
     box.addEventListener("click", function (e) {
       const o = e.target.closest("[data-id]");

@@ -251,6 +251,7 @@ function status_log_update($now) {
 }
 
 require __DIR__ . '/coleta.php';
+require __DIR__ . '/acompanhamento.php';
 
 $r = $_GET['r'] ?? '';
 
@@ -280,6 +281,39 @@ switch ($r) {
         cached_or_build("lista:$s:$off:$min:" . mb_strtolower($q), 60, function () use ($s, $off, $min, $q) { return battle_list($s, $off, $min, $q); }, $s);
         break;
     }
+    case 'acompanhar': {
+        // Passa a guardar kills, mortes e membros dessa guilda (chamado pelo painel e pelo bot ao vincular).
+        $s = param_region();
+        $gid = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
+        $r = track_guild($s, $gid, mb_substr((string)($_GET['n'] ?? ''), 0, 60));
+        if (!empty($r['novo'])) respond_then(json_encode($r), function () use ($s) { collect_tracked_locked($s); });
+        else echo json_encode($r);
+        break;
+    }
+    case 'painelguilda': {
+        $s = param_region();
+        $gid = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
+        $to = param_int('to', time(), 1600000000, time() + 86400);
+        $from = param_int('from', $to - 7 * 86400, $to - 32 * 86400, $to);
+        // Arredonda para o cache servir quem abre a mesma visão ao mesmo tempo.
+        $key = "painelguilda:$s:$gid:" . intdiv($from, 60) . ':' . intdiv($to, 60);
+        $f = cache_dir() . '/' . md5($key) . '.json';
+        if (is_file($f) && time() - filemtime($f) < 60) { echo file_get_contents($f); break; }
+        $out = json_encode(guild_dashboard($s, $gid, $from, $to));
+        @file_put_contents($f, $out, LOCK_EX);
+        $stale = time() - (int)meta_get(tdb($s), 'track_last', 0) > 300;
+        if ($stale) respond_then($out, function () use ($s) { collect_tracked_locked($s); });
+        else echo $out;
+        break;
+    }
+    case 'buscaguilda': {
+        // Busca rápida pelo banco do coletor; o site e o bot do Discord usam antes de cair na API oficial.
+        $s = param_region();
+        $q = mb_substr(trim((string)($_GET['q'] ?? '')), 0, 40);
+        if (mb_strlen($q) < 2) { echo '[]'; break; }
+        try { echo json_encode(guild_search($s, $q)); } catch (Throwable $e) { echo '[]'; }
+        break;
+    }
     case 'guilda': {
         $s = param_region();
         $gid = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
@@ -291,6 +325,11 @@ switch ($r) {
         // Chamado pelo agendador a cada poucos minutos; também roda sozinho quando alguém abre as páginas.
         $s = param_region();
         $force = !empty($_GET['forcar']);
+        if (($_GET['parte'] ?? '') === 'guildas') {
+            if (!empty($_GET['esperar'])) { echo json_encode(collect_tracked_locked($s)); break; }
+            respond_then(json_encode(['iniciado' => true]), function () use ($s) { collect_tracked_locked($s); });
+            break;
+        }
         if (!empty($_GET['esperar'])) { echo json_encode(collect($s, $force)); break; }
         // Responde na hora e coleta depois, para o tempo limite do servidor web não cortar a coleta.
         respond_then(json_encode(['iniciado' => true]), function () use ($s, $force) { collect($s, $force); });
