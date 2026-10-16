@@ -57,7 +57,7 @@ function icone_lista_catalogo() {
 }
 
 // Baixa os ícones que ainda faltam, 10 por vez, até o prazo. Devolve quantos faltavam e quantos baixou.
-function icone_aquecer($segundos) {
+function icone_aquecer($segundos, $paralelo = 4) {
     $fim = microtime(true) + $segundos;
     // Variações que o render do Albion não tem (404) ficam anotadas para não tentar de novo.
     $nf = dirname(__DIR__) . '/api/cache/icones_inexistentes.json';
@@ -66,13 +66,14 @@ function icone_aquecer($segundos) {
     $total = count($falta);
     $feitos = 0;
     $erros = 0;
-    foreach (array_chunk($falta, 10) as $lote) {
+    $codigos = [];
+    foreach (array_chunk($falta, $paralelo) as $lote) {
         if (microtime(true) > $fim - 8) break;
         $mh = curl_multi_init();
         $hs = [];
         foreach ($lote as $id) {
             $ch = curl_init(icone_url_render($id));
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_USERAGENT => 'EmporioDosBots/1.0']);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_USERAGENT => 'EmporioDosBots/1.0']);
             curl_multi_add_handle($mh, $ch);
             $hs[$id] = $ch;
         }
@@ -85,6 +86,7 @@ function icone_aquecer($segundos) {
             $ok = $code == 200 && icone_salvar(icone_arquivo($id), curl_multi_getcontent($ch));
             $ok ? $feitos++ : $erros++;
             if ($code == 404) $inexistentes[$id] = 1;
+            if (!$ok) { $c = $code ?: 'tempo'; $codigos[$c] = ($codigos[$c] ?? 0) + 1; }
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
         }
@@ -92,5 +94,5 @@ function icone_aquecer($segundos) {
     }
     if (!is_dir(dirname($nf))) @mkdir(dirname($nf), 0755, true);
     @file_put_contents($nf, json_encode($inexistentes), LOCK_EX);
-    return ['faltavam' => $total, 'baixados' => $feitos, 'erros' => $erros, 'inexistentes' => count($inexistentes), 'restam' => $total - $feitos];
+    return ['faltavam' => $total, 'baixados' => $feitos, 'erros' => $erros, 'inexistentes' => count($inexistentes), 'restam' => $total - $feitos, 'codigos' => $codigos];
 }
