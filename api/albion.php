@@ -290,7 +290,10 @@ switch ($r) {
     case 'coletar': {
         // Chamado pelo agendador a cada poucos minutos; também roda sozinho quando alguém abre as páginas.
         $s = param_region();
-        echo json_encode(collect($s, !empty($_GET['forcar'])));
+        $force = !empty($_GET['forcar']);
+        if (!empty($_GET['esperar'])) { echo json_encode(collect($s, $force)); break; }
+        // Responde na hora e coleta depois, para o tempo limite do servidor web não cortar a coleta.
+        respond_then(json_encode(['iniciado' => true]), function () use ($s, $force) { collect($s, $force); });
         break;
     }
     case 'saude': {

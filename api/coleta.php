@@ -136,7 +136,7 @@ function fetch_retry($s, $offs, &$stats) {
 function collect($s, $force = false) {
     $lockf = fopen(cache_dir() . "/coleta_$s.lock", 'c');
     if (!$lockf || !flock($lockf, LOCK_EX | LOCK_NB)) return ['ocupado' => true];
-    @set_time_limit(170);
+    @set_time_limit(280);
     @ignore_user_abort(true);
     $pdo = db($s);
     $last = (int)meta_get($pdo, 'last_run', 0);
@@ -160,9 +160,10 @@ function collect($s, $force = false) {
         if (($reached && !$failed) || !$newest) break;
     }
 
-    // 2) Histórico: continua de onde parou até o limite da API.
-    $bf = (int)meta_get($pdo, 'backfill_off', 0);
-    if ($bf < MAX_OFFSET && microtime(true) - $t0 < 60) {
+    // 2) Histórico: continua de onde parou, em blocos de 8 páginas, enquanto houver tempo.
+    while (microtime(true) - $t0 < 100) {
+        $bf = (int)meta_get($pdo, 'backfill_off', 0);
+        if ($bf >= MAX_OFFSET) break;
         $from = max($bf, 200);
         $offs = range($from, min(MAX_OFFSET, $from + 350), 50);
         $pages = fetch_retry($s, $offs, $stats);
@@ -177,7 +178,8 @@ function collect($s, $force = false) {
             $stats['novas'] += $n;
         }
         // Só avança até onde não houve buraco, e volta um pouco para cobrir o que andou na lista enquanto buscava.
-        if ($upto !== null) meta_set($pdo, 'backfill_off', $upto >= MAX_OFFSET ? MAX_OFFSET : max($bf, $upto - 50));
+        if ($upto === null) break;
+        meta_set($pdo, 'backfill_off', $upto >= MAX_OFFSET ? MAX_OFFSET : max($bf + 50, $upto - 50));
     }
     $stats['historico'] = (int)meta_get($pdo, 'backfill_off', 0) >= MAX_OFFSET ? 'completo' : 'coletando';
 
@@ -189,7 +191,7 @@ function collect($s, $force = false) {
         $pdo->prepare('DELETE FROM gp WHERE t < ?')->execute([$cut]);
         meta_set($pdo, 'last_prune', time());
     }
-    if (!meta_get($pdo, 'since')) meta_set($pdo, 'since', (int)$pdo->query('SELECT MIN(t) FROM battles')->fetchColumn());
+    meta_set($pdo, 'since', (int)$pdo->query('SELECT MIN(t) FROM battles')->fetchColumn());
     meta_set($pdo, 'last_ok', time());
     $stats['segundos'] = round(microtime(true) - $t0, 1);
     if (!empty($GLOBALS['coleta_erros'])) $stats['erros'] = array_slice($GLOBALS['coleta_erros'], 0, 12);
