@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Batalhas | Empório dos Bots</title>
 <meta name="description" content="Batalhas recentes de Albion Online por servidor, com guildas, abates e fama.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016a">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016a">
 <style>
   .bt-guilds { font-weight: 600; color: var(--text); max-width: 560px; }
   .bt-guilds small { display: block; font-weight: 400; color: var(--text-dim); font-size: 12px; margin-top: 2px; }
@@ -18,7 +18,7 @@
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
     <h1>Batalhas recentes</h1>
-    <p class="subtitle">Lutas registradas pela API oficial do Albion. Os dados chegam com alguns minutos de atraso.</p>
+    <p class="subtitle">Lutas registradas pela API oficial do Albion. O site guarda as batalhas assim que elas aparecem na API, que publica com alguns minutos de atraso.</p>
   </section>
 
   <div class="toolbar">
@@ -27,6 +27,7 @@
     <input class="input grow" id="q" type="search" placeholder="Filtrar por guilda ou aliança" style="max-width:300px">
   </div>
 
+  <p class="muted small" id="upd"></p>
   <div class="table-wrap">
     <table class="table">
       <thead><tr><th>Guildas</th><th>Quando</th><th class="num">Jogadores</th><th class="num">Abates</th><th class="num">Fama</th></tr></thead>
@@ -36,10 +37,10 @@
   <div id="state"></div>
   <div class="pager"><button class="btn secondary" id="more" style="display:none">Carregar mais</button></div>
 </main>
-<script src="/assets/js/config.js?v=20261015f"></script>
-<script src="/assets/js/auth.js?v=20261015f"></script>
-<script src="/assets/js/common.js?v=20261015f"></script>
-<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/config.js?v=20261016a"></script>
+<script src="/assets/js/auth.js?v=20261016a"></script>
+<script src="/assets/js/common.js?v=20261016a"></script>
+<script src="/assets/js/shell.js?v=20261016a"></script>
 <script>
 EmporioShell.renderTopbar("/batalhas/");
 
@@ -47,10 +48,13 @@ const SIZES = [0, 10, 20, 50, 100];
 let region = Emp.getRegion();
 let minPlayers = 0;
 let offset = 0;
+let fromDb = null;
+let qTimer = null;
 let all = [];
 let busy = false;
 
 function topSides(b) {
+  if (b.sides) return b.sides;
   // Agrupa por aliança (ou guilda, quando não há aliança) e ordena por jogadores.
   const sides = {};
   Object.values(b.players || {}).forEach(function (p) {
@@ -63,8 +67,10 @@ function topSides(b) {
   return Object.values(sides).sort(function (a, c) { return c.p - a.p; });
 }
 
+function count(b) { return b.n != null ? b.n : Object.keys(b.players || {}).length; }
 function matches(b) {
-  const n = Object.keys(b.players || {}).length;
+  if (fromDb) return true;
+  const n = count(b);
   if (n < minPlayers) return false;
   const q = document.getElementById("q").value.trim().toLowerCase();
   if (!q) return true;
@@ -82,7 +88,7 @@ function render() {
     return '<tr class="link" data-id="' + b.id + '"><td class="bt-guilds">' + (names || "Jogadores sem guilda") + extra +
       "<small>" + sides.length + (sides.length === 1 ? " lado" : " lados") + "</small></td>" +
       '<td class="muted small">' + Emp.ago(b.startTime) + "<br>" + Emp.dateTime(b.startTime) + "</td>" +
-      '<td class="num">' + Object.keys(b.players || {}).length + '</td><td class="num">' + Emp.int(b.totalKills) +
+      '<td class="num">' + count(b) + '</td><td class="num">' + Emp.int(b.totalKills) +
       '</td><td class="num">' + Emp.num(b.totalFame) + "</td></tr>";
   }).join("");
   const st = document.getElementById("state");
@@ -96,6 +102,22 @@ async function loadPage(auto) {
   document.getElementById("state").innerHTML = Emp.loading("Buscando batalhas...");
   document.getElementById("more").style.display = "none";
   try {
+    // Primeiro tenta o banco do site (resposta imediata, já filtrada); se ainda estiver vazio, usa a API oficial.
+    if (fromDb !== false) {
+      const d = await Emp.albion("lista", { s: region, offset: offset, min: Math.max(5, minPlayers), q: document.getElementById("q").value.trim() });
+      if (d.total > 0) {
+        fromDb = true;
+        offset += 50;
+        d.battles.forEach(function (b) { if (!all.some(function (x) { return x.id === b.id; })) all.push(b); });
+        document.getElementById("upd").innerHTML = '<span class="live-dot"></span>Atualizado ' + Emp.ago(d.updated * 1000) + ". Lutas com 5 ou mais jogadores.";
+        busy = false;
+        if (pending) { pending = false; reset(); return; }
+        render();
+        document.getElementById("more").style.display = d.battles.length < 50 ? "none" : "";
+        return;
+      }
+      fromDb = false;
+    }
     // Com filtro de tamanho, busca algumas páginas seguidas até ter resultado suficiente.
     let tries = 0;
     do {
@@ -114,13 +136,15 @@ async function loadPage(auto) {
   }
 }
 
+let pending = false;
 function reset() {
+  if (busy) { pending = true; return; }
   offset = 0; all = [];
   document.getElementById("rows").innerHTML = "";
   loadPage(true);
 }
 
-Emp.regionTabs(document.getElementById("region"), function (r) { region = r; reset(); });
+Emp.regionTabs(document.getElementById("region"), function (r) { region = r; fromDb = null; reset(); });
 
 document.getElementById("sizes").innerHTML = SIZES.map(function (n) {
   return '<span class="chip' + (n === 0 ? " on" : "") + '" data-n="' + n + '">' + (n ? n + "+ jogadores" : "Todas") + "</span>";
@@ -130,10 +154,14 @@ document.getElementById("sizes").addEventListener("click", function (e) {
   if (!c) return;
   minPlayers = parseInt(c.dataset.n, 10);
   document.querySelectorAll("#sizes .chip").forEach(function (x) { x.classList.toggle("on", x === c); });
+  if (fromDb) { reset(); return; }
   render();
   if (all.filter(matches).length < 20) loadPage(true);
 });
-document.getElementById("q").addEventListener("input", render);
+document.getElementById("q").addEventListener("input", function () {
+  if (!fromDb) { render(); return; }
+  clearTimeout(qTimer); qTimer = setTimeout(reset, 350);
+});
 document.getElementById("more").addEventListener("click", function () { loadPage(true); });
 document.getElementById("rows").addEventListener("click", function (e) {
   const tr = e.target.closest("tr[data-id]");

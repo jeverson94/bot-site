@@ -3,131 +3,252 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ranking de guildas | Empório dos Bots</title>
-<meta name="description" content="Ranking das guildas e alianças que mais lutaram nas batalhas recentes de Albion Online.">
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261015f">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261015f">
+<title>Guildas | Empório dos Bots</title>
+<meta name="description" content="Diretório das guildas de Albion Online: batalhas, membros, K/D, fama e horário nobre, com dados coletados o tempo todo da API oficial.">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016a">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016a">
+<style>
+  .filters { display: grid; gap: 16px; }
+  .filters h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--text-dim); }
+  .frow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .frow .grow { flex: 1; min-width: 200px; }
+  .range2 { position: relative; height: 30px; }
+  .range2 input { position: absolute; left: 0; right: 0; width: 100%; top: 6px; pointer-events: none; -webkit-appearance: none; appearance: none; background: none; }
+  .range2 input::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--card); border: 2px solid var(--gold); cursor: pointer; }
+  .range2 input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--card); border: 2px solid var(--gold); cursor: pointer; }
+  .range2 .track { position: absolute; left: 8px; right: 8px; top: 13px; height: 3px; border-radius: 3px; background: rgba(255,255,255,.1); }
+  .range2 .fill { position: absolute; top: 13px; height: 3px; border-radius: 3px; background: var(--gold); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); padding: 0 4px; }
+  .hours-box { cursor: crosshair; user-select: none; touch-action: none; }
+  .two { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; }
+  .result-bar { display: flex; justify-content: space-between; align-items: center; margin: 26px 0 14px; gap: 12px; flex-wrap: wrap; }
+  .result-bar b { font-size: 15px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: #6fcf8e; box-shadow: 0 0 0 3px rgba(111,207,142,.18); }
+  .gcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .gcard { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 6px; color: var(--text); transition: border-color .15s, transform .15s; }
+  .gcard:hover { border-color: rgba(226,188,98,.4); transform: translateY(-2px); text-decoration: none; }
+  .gtop { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .gname { font-weight: 700; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gname em { font-style: normal; color: var(--text-dim); font-weight: 600; margin-right: 6px; }
+  .gally { font-size: 12px; color: var(--text-dim); min-height: 15px; }
+  .gbadge { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--gold-soft); color: var(--gold); white-space: nowrap; text-align: center; line-height: 1.25; }
+  .gbadge small { display: block; font-weight: 600; opacity: .75; }
+  .gnums { display: flex; gap: 18px; align-items: baseline; margin-top: 2px; }
+  .gnums div { display: flex; flex-direction: column; }
+  .gnums b { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .gnums div:first-child b { font-size: 22px; }
+  .gnums span { font-size: 11px; color: var(--text-dim); }
+  .kd-up { color: #6fcf8e; } .kd-down { color: #e66a6a; }
+  .gspark { height: 64px; margin-top: 8px; }
+  .gfoot { font-size: 11.5px; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,.05); padding-top: 8px; margin-top: 2px; }
+  .gfoot b { color: var(--text); }
+  .gtable td .gname { max-width: 260px; }
+  .pager b { align-self: center; font-size: 13px; color: var(--text-dim); font-weight: 600; }
+  @media (max-width: 1000px) { .gcards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .gcards { grid-template-columns: 1fr; } .two { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
 <div id="topbar-root"></div>
 <main class="page-wrap">
   <section class="page-hero">
     <div class="eyebrow">Batalhas</div>
-    <h1>Ranking de guildas</h1>
-    <p class="subtitle">Montado a partir das últimas mil batalhas do servidor escolhido. Lutas com menos de 5 jogadores ficam de fora.</p>
+    <h1>Guildas</h1>
+    <p class="subtitle">Todas as guildas que lutaram no servidor, com batalhas, membros, K/D, fama e o horário em que mais lutam. O site coleta as batalhas da API oficial o tempo todo, então a página abre na hora.</p>
   </section>
 
-  <div class="toolbar">
-    <div id="region"></div>
-    <div class="tabs" id="mode"><button class="tab on" data-m="g">Guildas</button><button class="tab" data-m="a">Alianças</button></div>
-    <select class="select" id="scale">
-      <option value="5-9999">Qualquer tamanho</option>
-      <option value="5-14">Roaming (5 a 14)</option>
-      <option value="15-29">Pequena escala (15 a 29)</option>
-      <option value="30-69">Média escala (30 a 69)</option>
-      <option value="70-9999">Grande escala (70+)</option>
-    </select>
-    <select class="select" id="sort">
-      <option value="b">Mais batalhas</option>
-      <option value="f">Mais fama</option>
-      <option value="kd">Melhor K/D</option>
-      <option value="m">Maior média de jogadores</option>
-    </select>
-    <input class="input grow" id="q" type="search" placeholder="Buscar nome" style="max-width:240px">
+  <div class="card filters">
+    <div class="frow">
+      <div id="region"></div>
+      <input class="input grow" id="q" type="search" placeholder="Buscar guilda ou aliança">
+      <button class="btn" id="go">Buscar</button>
+    </div>
+    <div>
+      <h4>Escala</h4>
+      <div class="frow" id="scale">
+        <span class="chip on" data-r="5-100000">Qualquer</span>
+        <span class="chip" data-r="5-14">Roaming 5 a 14</span>
+        <span class="chip" data-r="15-29">Pequena escala 15 a 29</span>
+        <span class="chip" data-r="30-49">Média escala 30 a 49</span>
+        <span class="chip" data-r="50-100000">Grande escala 50+</span>
+      </div>
+    </div>
+    <div>
+      <div class="row between"><h4>Jogadores por luta</h4><span class="small muted" id="pl-lab">Qualquer tamanho</span></div>
+      <div class="range2"><div class="track"></div><div class="fill" id="pl-fill"></div><input type="range" id="pl0" min="0" max="8" step="1" value="0"><input type="range" id="pl1" min="0" max="8" step="1" value="8"></div>
+      <div class="ticks" id="pl-ticks"></div>
+    </div>
+    <div>
+      <div class="row between"><h4>Horário nobre (UTC)</h4><span class="small muted"><span id="hr-lab">Todas as horas</span> · <a href="#" id="hr-clear">limpar</a></span></div>
+      <div class="gx-box hours-box" id="hours"></div>
+      <p class="small muted" style="margin:6px 0 0">Arraste no gráfico para ver só as guildas que lutam naquele horário. Brasília é UTC menos 3 horas.</p>
+    </div>
+    <div class="two">
+      <div>
+        <h4>Período</h4>
+        <div class="frow" id="days"><span class="chip" data-d="1">24 horas</span><span class="chip on" data-d="7">7 dias</span><span class="chip" data-d="28">28 dias</span></div>
+      </div>
+      <label class="field" style="min-width:190px">Ordenar por
+        <select class="select" id="sort">
+          <option value="b">Batalhas</option><option value="f">Fama em batalha</option><option value="kd">K/D</option>
+          <option value="m">Membros</option><option value="k">Abates</option><option value="avg">Média de jogadores</option>
+        </select>
+      </label>
+    </div>
   </div>
-  <p class="muted small" id="period"></p>
-  <div class="table-wrap">
-    <table class="table">
-      <thead><tr><th>#</th><th>Nome</th><th class="num">Batalhas</th><th class="num">Média</th><th class="num">Pico</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">K/D</th><th class="num">Fama</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+
+  <div class="result-bar">
+    <div><b id="count">Carregando...</b> <span class="muted small" id="period"></span></div>
+    <div class="frow">
+      <span class="live" id="live"></span>
+      <div class="tabs" id="view"><button class="tab on" data-v="cards" title="Cartões">Cartões</button><button class="tab" data-v="list" title="Lista">Lista</button></div>
+    </div>
   </div>
-  <div id="state"></div>
+  <div id="out"><div class="state"><span class="spin"></span>Carregando...</div></div>
+  <div class="pager" id="pager"></div>
 </main>
-<script src="/assets/js/config.js?v=20261015f"></script>
-<script src="/assets/js/auth.js?v=20261015f"></script>
-<script src="/assets/js/common.js?v=20261015f"></script>
-<script src="/assets/js/shell.js?v=20261015f"></script>
+<script src="/assets/js/config.js?v=20261016a"></script>
+<script src="/assets/js/auth.js?v=20261016a"></script>
+<script src="/assets/js/common.js?v=20261016a"></script>
+<script src="/assets/js/shell.js?v=20261016a"></script>
+<script src="/assets/js/graficos.js?v=20261016a"></script>
 <script>
 EmporioShell.renderTopbar("/guildas/");
 
-let region = Emp.getRegion();
-let mode = "g";
-let data = [];
+const STEPS = [5, 10, 15, 20, 30, 50, 100, 200, 100000];
+const SCALE_N = { roaming: "Roaming", pequena: "Pequena escala", media: "Média escala", grande: "Grande escala" };
+const $ = function (id) { return document.getElementById(id); };
+const st = { s: Emp.getRegion(), days: 7, min: 5, max: 100000, h0: 0, h1: 23, q: "", sort: "b", page: 1, view: "cards" };
+try { st.view = localStorage.getItem("emp_guildas_view") || "cards"; } catch (e) {}
+let last = null, timer = null;
 
-function aggregate() {
-  const sc = document.getElementById("scale").value.split("-").map(Number);
-  const out = {};
-  data.forEach(function (b) {
-    if (b.p < sc[0] || b.p > sc[1]) return;
-    const local = {};
-    b.g.forEach(function (g) {
-      const key = mode === "g" ? g.id : (g.ai || "g:" + g.id);
-      const name = mode === "g" ? g.n : (g.a || g.n);
-      if (!local[key]) local[key] = { id: key, n: name, sub: mode === "g" ? g.a : "", p: 0, k: 0, d: 0, f: 0 };
-      local[key].p += g.p; local[key].k += g.k; local[key].d += g.d; local[key].f += g.f;
-    });
-    Object.values(local).forEach(function (l) {
-      if (!out[l.id]) out[l.id] = { n: l.n, sub: l.sub, b: 0, p: 0, peak: 0, k: 0, d: 0, f: 0 };
-      const o = out[l.id];
-      o.b++; o.p += l.p; o.peak = Math.max(o.peak, l.p); o.k += l.k; o.d += l.d; o.f += l.f;
-    });
+function stepLabel(v) { return v >= 100000 ? "qualquer" : String(v); }
+function syncRange() {
+  const a = +$("pl0").value, b = +$("pl1").value;
+  $("pl-fill").style.left = "calc(8px + " + (a / 8) + " * (100% - 16px))";
+  $("pl-fill").style.width = "calc(" + ((b - a) / 8) + " * (100% - 16px))";
+  $("pl-lab").textContent = a === 0 && b === 8 ? "Qualquer tamanho" : STEPS[b] >= 100000 ? STEPS[a] + " ou mais jogadores" : "De " + STEPS[a] + " a " + STEPS[b] + " jogadores";
+}
+$("pl-ticks").innerHTML = STEPS.map(function (v) { return "<span>" + (v >= 100000 ? "200+" : v) + "</span>"; }).join("");
+$("pl-ticks").lastChild.textContent = "";
+function setRange(min, max) {
+  const ia = Math.max(0, STEPS.findIndex(function (v) { return v >= min; }));
+  let ib = STEPS.findIndex(function (v) { return v >= max; }); if (ib < 0) ib = 8;
+  $("pl0").value = ia; $("pl1").value = ib; syncRange();
+}
+["pl0", "pl1"].forEach(function (id) {
+  $(id).addEventListener("input", function () {
+    if (+$("pl0").value > +$("pl1").value) { if (id === "pl0") $("pl1").value = $("pl0").value; else $("pl0").value = $("pl1").value; }
+    syncRange();
   });
-  return Object.values(out);
-}
-
-function render() {
-  if (!data.length) return;
-  const sort = document.getElementById("sort").value;
-  const q = document.getElementById("q").value.trim().toLowerCase();
-  let list = aggregate().filter(function (o) { return o.b >= 2 || sort === "b"; });
-  list.forEach(function (o) { o.kd = o.k / Math.max(1, o.d); o.m = o.p / o.b; });
-  list.sort(function (a, b) {
-    if (sort === "f") return b.f - a.f;
-    if (sort === "kd") return b.kd - a.kd;
-    if (sort === "m") return b.m - a.m;
-    return b.b - a.b || b.f - a.f;
+  $(id).addEventListener("change", function () {
+    st.min = STEPS[+$("pl0").value]; st.max = STEPS[+$("pl1").value];
+    // Escala vira "personalizada": nenhum botão fica marcado se a faixa não bater.
+    document.querySelectorAll("#scale .chip").forEach(function (c) { c.classList.toggle("on", c.dataset.r === st.min + "-" + st.max); });
+    st.page = 1; load();
   });
-  const ranked = list.map(function (o, i) { o.rank = i + 1; return o; });
-  const shown = ranked.filter(function (o) { return !q || o.n.toLowerCase().includes(q) || (o.sub || "").toLowerCase().includes(q); }).slice(0, 100);
-  document.getElementById("rows").innerHTML = shown.map(function (o) {
-    return '<tr><td class="muted">' + o.rank + "</td><td><b>" + Emp.esc(o.n) + "</b>" + (o.sub ? ' <span class="badge">' + Emp.esc(o.sub) + "</span>" : "") + "</td>" +
-      '<td class="num">' + o.b + '</td><td class="num">' + o.m.toFixed(1).replace(".", ",") + '</td><td class="num">' + o.peak +
-      '</td><td class="num">' + Emp.int(o.k) + '</td><td class="num">' + Emp.int(o.d) + '</td><td class="num ' + (o.kd >= 1 ? "good" : "bad") + '">' +
-      o.kd.toFixed(2).replace(".", ",") + '</td><td class="num">' + Emp.num(o.f) + "</td></tr>";
-  }).join("");
-  document.getElementById("state").innerHTML = shown.length ? "" : Emp.emptyState("Nenhum resultado com esses filtros.");
-}
-
-async function load() {
-  data = [];
-  document.getElementById("rows").innerHTML = "";
-  document.getElementById("period").textContent = "";
-  document.getElementById("state").innerHTML = Emp.loading("Somando as batalhas recentes...");
-  try {
-    data = await Emp.albion("recent", { s: region });
-    data = data.filter(function (b) { return b.p >= 5; });
-    if (data.length) {
-      const oldest = data[data.length - 1].t;
-      const hours = Math.round((Date.now() - Date.parse(oldest)) / 3600000);
-      document.getElementById("period").textContent = data.length + " batalhas com 5 ou mais jogadores nas últimas " + hours + " horas.";
-    }
-    render();
-  } catch (e) {
-    document.getElementById("state").innerHTML = Emp.emptyState(Emp.esc(e.message) + ". Tente de novo em alguns minutos.");
-  }
-}
-
-Emp.regionTabs(document.getElementById("region"), function (r) { region = r; load(); });
-document.getElementById("mode").addEventListener("click", function (e) {
-  const b = e.target.closest("[data-m]");
-  if (!b) return;
-  mode = b.dataset.m;
-  document.querySelectorAll("#mode .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
-  render();
 });
-["scale", "sort"].forEach(function (id) { document.getElementById(id).addEventListener("change", render); });
-document.getElementById("q").addEventListener("input", render);
+syncRange();
+
+document.querySelectorAll("#scale .chip").forEach(function (c) {
+  c.addEventListener("click", function () {
+    document.querySelectorAll("#scale .chip").forEach(function (x) { x.classList.toggle("on", x === c); });
+    const r = c.dataset.r.split("-").map(Number);
+    st.min = r[0]; st.max = r[1]; setRange(r[0], r[1]); st.page = 1; load();
+  });
+});
+document.querySelectorAll("#days .chip").forEach(function (c) {
+  c.addEventListener("click", function () {
+    document.querySelectorAll("#days .chip").forEach(function (x) { x.classList.toggle("on", x === c); });
+    st.days = +c.dataset.d; st.page = 1; load();
+  });
+});
+$("sort").addEventListener("change", function () { st.sort = this.value; st.page = 1; load(); });
+$("go").addEventListener("click", function () { st.q = $("q").value.trim(); st.page = 1; load(); });
+$("q").addEventListener("keydown", function (e) { if (e.key === "Enter") $("go").click(); });
+$("hr-clear").addEventListener("click", function (e) { e.preventDefault(); st.h0 = 0; st.h1 = 23; st.page = 1; load(); });
+document.querySelectorAll("#view .tab").forEach(function (b) {
+  b.classList.toggle("on", b.dataset.v === st.view);
+  b.addEventListener("click", function () {
+    st.view = b.dataset.v;
+    try { localStorage.setItem("emp_guildas_view", st.view); } catch (e) {}
+    document.querySelectorAll("#view .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+    if (last) render(last);
+  });
+});
+Emp.regionTabs($("region"), function (r) { st.s = r; st.page = 1; load(); });
+
+function hourLabel() {
+  if (st.h0 === 0 && st.h1 === 23) return "Todas as horas";
+  return String(st.h0).padStart(2, "0") + "h às " + String(st.h1).padStart(2, "0") + "h59 UTC";
+}
+function dayLabel(d, i) {
+  const t = new Date((d.start + i * d.step) * 1000);
+  if (d.step === 3600) return t.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "<br>";
+  return t.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" }) + "<br>";
+}
+function kd(v) { return '<b class="' + (v >= 1 ? "kd-up" : "kd-down") + '">' + (v >= 1 ? "▲ " : "▼ ") + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</b>"; }
+function periodText() { return st.days === 1 ? "nas últimas 24 horas" : st.days === 7 ? "nos últimos 7 dias" : "nos últimos 28 dias"; }
+function link(g) { return "/guildas/ver/?s=" + st.s + "&id=" + encodeURIComponent(g.id); }
+
+function render(d) {
+  last = d;
+  $("count").textContent = Emp.int(d.total) + (d.total === 1 ? " guilda" : " guildas");
+  $("period").textContent = periodText() + (st.h0 !== 0 || st.h1 !== 23 ? ", " + hourLabel() : "");
+  const since = d.since ? new Date(d.since * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  $("live").innerHTML = d.updated ? '<i></i>Atualizado ' + Emp.ago(d.updated * 1000) + " · " + Emp.int(d.battles) + " batalhas salvas" + (since ? " desde " + since : "") : "Primeira coleta em andamento";
+  $("hr-lab").textContent = hourLabel();
+  Graficos.hours($("hours"), d.hours, [st.h0, st.h1], function (r) { st.h0 = r[0]; st.h1 = r[1]; st.page = 1; load(); });
+  if (!d.guilds.length) {
+    $("out").innerHTML = Emp.emptyState(d.battles ? "Nenhuma guilda com esses filtros." : "Ainda não há batalhas salvas para este servidor. A coleta começou agora; volte em alguns minutos.");
+    $("pager").innerHTML = "";
+    return;
+  }
+  if (st.view === "list") {
+    $("out").innerHTML = '<div class="table-wrap"><table class="table gtable"><thead><tr><th>#</th><th>Guilda</th><th class="num">Batalhas</th><th class="num">Membros</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">K/D</th><th class="num">Média</th><th class="num">Fama</th><th>Tendência</th></tr></thead><tbody>' +
+      d.guilds.map(function (g, i) {
+        return '<tr><td class="muted">' + g.rank + '</td><td><a class="gname" href="' + link(g) + '">' + Emp.esc(g.n) + "</a>" + (g.a ? '<div class="gally">[' + Emp.esc(g.a) + "]</div>" : "") +
+          '</td><td class="num">' + Emp.int(g.b) + '</td><td class="num">' + Emp.int(g.m) + '</td><td class="num">' + Emp.int(g.k) + '</td><td class="num">' + Emp.int(g.d) +
+          '</td><td class="num">' + kd(g.kd) + '</td><td class="num">' + g.avg.toLocaleString("pt-BR") + '</td><td class="num">' + Emp.num(g.f) + '</td><td style="width:140px"><div class="gx-box" id="sp' + i + '" style="height:34px"></div></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  } else {
+    $("out").innerHTML = '<div class="gcards">' + d.guilds.map(function (g, i) {
+      const bd = g.badge ? '<span class="gbadge">#' + g.badge.r + " " + SCALE_N[g.badge.e] + "<small>em batalhas</small></span>" : "";
+      return '<a class="gcard" href="' + link(g) + '"><div class="gtop"><div style="min-width:0"><div class="gname"><em>#' + g.rank + "</em>" + Emp.esc(g.n) + '</div><div class="gally">' + (g.a ? Emp.esc(g.a) : "") + "</div></div>" + bd + "</div>" +
+        '<div class="gnums"><div><b>' + Emp.int(g.b) + "</b><span>Batalhas</span></div><div><b>" + Emp.int(g.m) + "</b><span>Membros</span></div><div>" + kd(g.kd) + "<span>K/D</span></div></div>" +
+        '<div class="gx-box gspark" id="sp' + i + '"></div>' +
+        '<div class="gfoot"><b>' + Emp.num(g.f) + "</b> de fama em batalha " + periodText() + "</div></a>";
+    }).join("") + "</div>";
+  }
+  d.guilds.forEach(function (g, i) {
+    Graficos.sparkline($("sp" + i), g.s, { h: st.view === "list" ? 34 : 64, unit: g.s.length === 1 ? "" : "batalhas", label: function (j) { return dayLabel(d, j); } });
+  });
+  $("pager").innerHTML = d.pages > 1 ? '<button class="btn secondary" id="prev"' + (d.page <= 1 ? " disabled" : "") + '>← Anterior</button><b>Página ' + d.page + " de " + d.pages +
+    '</b><button class="btn secondary" id="next"' + (d.page >= d.pages ? " disabled" : "") + ">Próxima →</button>" : "";
+  if ($("prev")) $("prev").onclick = function () { st.page--; load(true); };
+  if ($("next")) $("next").onclick = function () { st.page++; load(true); };
+}
+
+let seq = 0;
+function load(scroll) {
+  const my = ++seq;
+  if (!last) $("out").innerHTML = Emp.loading("Carregando guildas...");
+  else $("out").style.opacity = ".55";
+  Emp.albion("dir", { s: st.s, days: st.days, min: st.min, max: st.max, h0: st.h0, h1: st.h1, q: st.q, sort: st.sort, page: st.page }).then(function (d) {
+    if (my !== seq) return;
+    $("out").style.opacity = "";
+    render(d);
+    if (scroll) window.scrollTo({ top: $("count").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
+  }).catch(function (e) {
+    if (my !== seq) return;
+    $("out").style.opacity = "";
+    $("out").innerHTML = Emp.emptyState(Emp.esc(e.message));
+  });
+  // Tempo real: recarrega sozinho a cada 2 minutos enquanto a página está aberta.
+  clearTimeout(timer);
+  timer = setTimeout(function () { if (!document.hidden) load(); }, 120000);
+}
 load();
 </script>
 </body>

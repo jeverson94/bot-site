@@ -1,0 +1,25 @@
+# Mantém o banco de batalhas do site atualizado: chama a coleta das três regiões a cada 10 minutos.
+# A coleta roda no próprio site (api/albion.php?r=coletar); aqui só fazemos a chamada.
+name: Coleta de batalhas
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: coleta
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Chamar a coleta
+        run: |
+          for s in am eu as; do
+            curl -s -m 200 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=coletar&s=$s" &
+          done
+          wait
+          echo

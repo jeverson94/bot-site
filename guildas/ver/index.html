@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guilda | Empório dos Bots</title>
+<meta name="description" content="Perfil de guilda de Albion Online: batalhas por dia, horário nobre, escala, rivais, membros e últimas lutas.">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016a">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016a">
+<style>
+  .stats8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kd-up { color: #6fcf8e !important; } .kd-down { color: #e66a6a !important; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .scale-row { display: grid; grid-template-columns: 130px 1fr 70px 70px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; }
+  .scale-row .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .scale-row .bar i { display: block; height: 100%; background: var(--gold); border-radius: 4px; }
+  .scale-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  @media (max-width: 900px) { .stats8 { grid-template-columns: repeat(2, 1fr); } .cols2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="topbar-root"></div>
+<main class="page-wrap">
+  <section class="page-hero">
+    <div class="eyebrow"><a href="/guildas/">Guildas</a></div>
+    <h1 id="name">Carregando...</h1>
+    <p class="subtitle" id="sub"></p>
+  </section>
+  <div class="toolbar">
+    <div class="tabs" id="days"><button class="tab" data-d="7">7 dias</button><button class="tab on" data-d="28">28 dias</button></div>
+    <span class="muted small" id="upd"></span>
+  </div>
+  <div id="out"><div class="state"><span class="spin"></span>Carregando...</div></div>
+</main>
+<script src="/assets/js/config.js?v=20261016a"></script>
+<script src="/assets/js/auth.js?v=20261016a"></script>
+<script src="/assets/js/common.js?v=20261016a"></script>
+<script src="/assets/js/shell.js?v=20261016a"></script>
+<script src="/assets/js/graficos.js?v=20261016a"></script>
+<script>
+EmporioShell.renderTopbar("/guildas/");
+const P = new URLSearchParams(location.search);
+const S = /^(am|eu|as)$/.test(P.get("s") || "") ? P.get("s") : Emp.getRegion();
+const ID = P.get("id") || "";
+const SCALE_N = { roaming: "Roaming (5 a 14)", pequena: "Pequena (15 a 29)", media: "Média (30 a 49)", grande: "Grande (50+)" };
+let days = 28;
+
+function kdv(k, d) { return d ? k / d : k; }
+function kdTxt(v) { return '<span class="' + (v >= 1 ? "kd-up" : "kd-down") + '">' + (v >= 1 ? "▲ " : "▼ ") + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</span>"; }
+function stat(v, l) { return '<div class="stat"><b>' + v + "</b><span>" + l + "</span></div>"; }
+
+function render(d) {
+  const g = d.g, t = d.tot;
+  document.title = g.n + " | Guildas | Empório dos Bots";
+  document.getElementById("name").textContent = g.n;
+  document.getElementById("sub").innerHTML = (g.a ? "Aliança <b>" + Emp.esc(g.a) + "</b> · " : "") + "Última batalha " + Emp.ago(g.last * 1000);
+  document.getElementById("upd").textContent = d.updated ? "Dados atualizados " + Emp.ago(d.updated * 1000) : "";
+  const b = +t.b || 0, k = +t.k || 0, de = +t.d || 0;
+  const per = days === 7 ? "7 dias" : "28 dias";
+  const dl = d.days.map(function (_, i) { return new Date((d.start + i * 86400) * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" }); });
+  const maxScale = Math.max(1, Math.max.apply(null, Object.keys(d.scales).map(function (k2) { return d.scales[k2].b; })));
+  document.getElementById("out").innerHTML =
+    '<div class="stats8">' + stat(Emp.int(b), "Batalhas em " + per) + stat(Emp.int(d.mcount), "Membros que lutaram") + stat(kdTxt(kdv(k, de)), "K/D") +
+    stat(Emp.num(+t.f || 0), "Fama em batalha") + stat(Emp.int(k), "Abates") + stat(Emp.int(de), "Mortes") +
+    stat(b ? (t.ps / b).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "0", "Média de jogadores da guilda por luta") + stat(Emp.int(+t.pk || 0), "Maior número de jogadores numa luta") + "</div>" +
+    '<div class="section"><h2>Batalhas por dia</h2><div class="card"><div class="gx-box" id="c-days"></div></div></div>' +
+    '<div class="section cols2"><div><h2>Abates e mortes por dia</h2><div class="card"><div class="legend"><span><i style="background:#e2bc62"></i>Abates</span><span><i style="background:#7c9bd8"></i>Mortes</span></div>' +
+    '<div class="gx-box" id="c-k"></div><div class="gx-box" id="c-d" style="margin-top:10px"></div></div></div>' +
+    '<div><h2>Horário em que mais luta (UTC)</h2><div class="card"><div class="gx-box" id="c-hours"></div><p class="small muted" style="margin:8px 0 0">Brasília é UTC menos 3 horas.</p></div></div></div>' +
+    '<div class="section cols2"><div><h2>Por tamanho de luta</h2><div class="card">' + Object.keys(d.scales).map(function (k2) {
+      const x = d.scales[k2];
+      return '<div class="scale-row"><span>' + SCALE_N[k2] + '</span><div class="bar"><i style="width:' + (x.b / maxScale * 100) + '%"></i></div><span class="num">' + Emp.int(x.b) + '</span><span class="num">' + (x.b ? kdTxt(kdv(x.k, x.d)) : "") + "</span></div>";
+    }).join("") + '<p class="small muted" style="margin:8px 0 0">Batalhas e K/D em cada faixa de tamanho.</p></div></div>' +
+    '<div><h2>Rivais</h2><div class="card">' + (d.rivals.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>Guilda</th><th class="num">Lutas juntas</th><th class="num">Abates deles</th></tr></thead><tbody>' +
+      d.rivals.map(function (r) { return '<tr><td><a href="/guildas/ver/?s=' + S + "&id=" + encodeURIComponent(r.g) + '">' + Emp.esc(r.n) + "</a>" + (r.a ? ' <span class="muted small">[' + Emp.esc(r.a) + "]</span>" : "") + '</td><td class="num">' + Emp.int(r.c) + '</td><td class="num">' + Emp.int(r.ok) + "</td></tr>"; }).join("") +
+      "</tbody></table></div>" : '<p class="muted">Sem rivais registrados no período.</p>') + "</div></div></div>" +
+    '<div class="section"><h2>Membros que mais lutaram</h2><p class="subtitle">' + Emp.int(d.mcount) + " jogadores da guilda apareceram em batalhas no período. Mostrando os 60 mais ativos.</p>" +
+    '<div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th class="num">Batalhas</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">K/D</th><th class="num">Fama</th><th>Última luta</th></tr></thead><tbody>' +
+    d.members.map(function (m) { return "<tr><td>" + Emp.esc(m.n) + '</td><td class="num">' + Emp.int(m.b) + '</td><td class="num">' + Emp.int(m.k) + '</td><td class="num">' + Emp.int(m.d) + '</td><td class="num">' + kdTxt(kdv(+m.k, +m.d)) + '</td><td class="num">' + Emp.num(+m.f) + "</td><td>" + Emp.ago(m.t * 1000) + "</td></tr>"; }).join("") +
+    "</tbody></table></div></div>" +
+    '<div class="section"><h2>Últimas batalhas</h2><div class="table-wrap"><table class="table"><thead><tr><th>Quando</th><th class="num">Jogadores na luta</th><th class="num">Da guilda</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama da guilda</th></tr></thead><tbody>' +
+    d.recent.map(function (r) { return '<tr class="clickable" data-id="' + r.id + '"><td>' + Emp.dateTime(new Date(r.t * 1000).toISOString()) + ' <span class="muted small">(' + Emp.ago(r.t * 1000) + ')</span></td><td class="num">' + r.bp + '</td><td class="num">' + r.p + '</td><td class="num">' + r.k + '</td><td class="num">' + r.d + '</td><td class="num">' + Emp.num(+r.f) + "</td></tr>"; }).join("") +
+    "</tbody></table></div></div>";
+  const lab = function (i) { return dl[i] + "<br>"; };
+  Graficos.bars(document.getElementById("c-days"), d.days.map(function (x) { return x.b; }), { h: 160, unit: "batalhas", label: lab, labels: dl.map(function (x, i) { return i % (days === 7 ? 1 : 4) ? "" : x; }) });
+  Graficos.bars(document.getElementById("c-k"), d.days.map(function (x) { return x.k; }), { h: 70, unit: "abates", label: lab });
+  Graficos.bars(document.getElementById("c-d"), d.days.map(function (x) { return x.d; }), { h: 70, unit: "mortes", label: lab, color: "#7c9bd8", labels: dl.map(function (x, i) { return i % (days === 7 ? 1 : 7) ? "" : x; }) });
+  Graficos.bars(document.getElementById("c-hours"), d.hours, { h: 150, unit: "batalhas", label: function (i) { return String(i).padStart(2, "0") + "h UTC<br>"; }, labels: d.hours.map(function (_, i) { return i % 3 ? "" : String(i).padStart(2, "0"); }) });
+  document.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.addEventListener("click", function () { location.href = "/batalhas/" + tr.dataset.id + "?s=" + S; }); });
+}
+
+function load() {
+  if (!/^[A-Za-z0-9_-]{6,40}$/.test(ID)) { document.getElementById("out").innerHTML = Emp.emptyState("Guilda não informada."); return; }
+  Emp.albion("guilda", { s: S, id: ID, days: days }).then(function (d) {
+    if (d.erro) { document.getElementById("name").textContent = "Guilda"; document.getElementById("out").innerHTML = Emp.emptyState("Essa guilda ainda não tem batalhas salvas neste servidor."); return; }
+    render(d);
+  }).catch(function (e) { document.getElementById("out").innerHTML = Emp.emptyState(Emp.esc(e.message)); });
+}
+document.querySelectorAll("#days .tab").forEach(function (b) {
+  b.addEventListener("click", function () {
+    document.querySelectorAll("#days .tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+    days = +b.dataset.d; load();
+  });
+});
+load();
+</script>
+</body>
+</html>

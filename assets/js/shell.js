@@ -9,7 +9,7 @@
     ]},
     { label: "Batalhas", items: [
       { href: "/batalhas/", label: "Batalhas", desc: "Lutas recentes por servidor" },
-      { href: "/guildas/", label: "Ranking de guildas", desc: "Quem mais lutou nas últimas horas" },
+      { href: "/guildas/", label: "Guildas", desc: "Batalhas, membros, K/D e horário nobre de cada guilda" },
       { href: "/batalhas/guerras/", label: "Guerras", desc: "Duas guildas, frente a frente" },
       { href: "/batalhas/meta/", label: "Tierlist de itens", desc: "O que está sendo usado nas ZvZ" },
     ]},

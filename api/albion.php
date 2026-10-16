@@ -64,6 +64,11 @@ function fetch_many($urls, $ttl, $timeout = 25) {
     $pending = [];
     foreach ($urls as $u) {
         $c = cache_get($u, $ttl);
+        if ($c === null && empty($GLOBALS['no_stale'])) {
+            // Resposta vencida mas recente: entrega já e atualiza depois que a página receber a resposta.
+            $c = cache_get($u, 21600);
+            if ($c !== null) $GLOBALS['refresh'][$u] = $ttl;
+        }
         if ($c !== null) $out[$u] = $c; else $pending[] = $u;
     }
     foreach (array_chunk($pending, 16) as $chunk) {
@@ -94,6 +99,16 @@ function fetch_many($urls, $ttl, $timeout = 25) {
     return $out;
 }
 
+register_shutdown_function(function () {
+    if (empty($GLOBALS['refresh'])) return;
+    $GLOBALS['no_stale'] = true;
+    @ignore_user_abort(true);
+    @set_time_limit(90);
+    if (function_exists('litespeed_finish_request')) litespeed_finish_request();
+    elseif (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    fetch_many(array_keys($GLOBALS['refresh']), 0);
+});
+
 function fetch_one($url, $ttl) {
     $r = fetch_many([$url], $ttl);
     return $r[$url];
@@ -119,6 +134,9 @@ function param_int($name, $def, $min, $max) {
 // Lista de batalhas recentes em formato compacto, usada pelo ranking,
 // pelo quadro de guerras e pela tierlist.
 function recent_battles($s, $pages) {
+    // Com o coletor rodando, as batalhas já estão no banco e a resposta é imediata.
+    try { $fromdb = recent_from_db($s, $pages * 50); } catch (Throwable $e) { $fromdb = null; }
+    if ($fromdb) return $fromdb;
     $key = "recent:$s:$pages";
     $hit = cache_get($key, 900);
     if ($hit !== null) return json_decode($hit, true);
@@ -232,9 +250,62 @@ function status_log_update($now) {
     return $log;
 }
 
+require __DIR__ . '/coleta.php';
+
 $r = $_GET['r'] ?? '';
 
 switch ($r) {
+    case 'dir': {
+        $s = param_region();
+        $days = in_array((int)($_GET['days'] ?? 7), [1, 7, 28]) ? (int)$_GET['days'] : 7;
+        $o = [
+            'days' => $days,
+            'min' => param_int('min', 5, 5, 1000),
+            'max' => param_int('max', 100000, 5, 100000),
+            'h0' => param_int('h0', 0, 0, 23),
+            'h1' => param_int('h1', 23, 0, 23),
+            'q' => mb_substr((string)($_GET['q'] ?? ''), 0, 40),
+            'sort' => in_array($_GET['sort'] ?? 'b', ['b', 'f', 'kd', 'm', 'k', 'avg']) ? $_GET['sort'] : 'b',
+            'page' => param_int('page', 1, 1, 999),
+            'per' => 24,
+        ];
+        cached_or_build('dir:' . $s . ':' . json_encode($o), 120, function () use ($s, $o) { return guild_directory($s, $o); }, $s);
+        break;
+    }
+    case 'lista': {
+        $s = param_region();
+        $off = param_int('offset', 0, 0, 100000);
+        $min = param_int('min', 5, 5, 1000);
+        $q = mb_substr(trim((string)($_GET['q'] ?? '')), 0, 40);
+        cached_or_build("lista:$s:$off:$min:" . mb_strtolower($q), 60, function () use ($s, $off, $min, $q) { return battle_list($s, $off, $min, $q); }, $s);
+        break;
+    }
+    case 'guilda': {
+        $s = param_region();
+        $gid = param_id('id', '/^[A-Za-z0-9_-]{6,40}$/');
+        $days = in_array((int)($_GET['days'] ?? 28), [7, 28]) ? (int)$_GET['days'] : 28;
+        cached_or_build("guilda:$s:$gid:$days", 180, function () use ($s, $gid, $days) { return guild_profile($s, $gid, $days); }, $s);
+        break;
+    }
+    case 'coletar': {
+        // Chamado pelo agendador a cada poucos minutos; também roda sozinho quando alguém abre as páginas.
+        $s = param_region();
+        echo json_encode(collect($s, !empty($_GET['forcar'])));
+        break;
+    }
+    case 'saude': {
+        $out = ['sqlite' => class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers()),
+            'finish' => function_exists('litespeed_finish_request') ? 'litespeed' : (function_exists('fastcgi_finish_request') ? 'fastcgi' : 'nenhum'),
+            'php' => PHP_VERSION, 'limite' => ini_get('max_execution_time')];
+        if ($out['sqlite']) foreach (array_keys(HOSTS) as $reg) {
+            $pdo = db($reg);
+            $out[$reg] = ['batalhas' => (int)$pdo->query('SELECT COUNT(*) FROM battles')->fetchColumn(),
+                'desde' => (int)meta_get($pdo, 'since', 0), 'ultima' => (int)meta_get($pdo, 'last_ok', 0),
+                'historico' => (int)meta_get($pdo, 'backfill_off', 0)];
+        }
+        echo json_encode($out);
+        break;
+    }
     case 'battles': {
         $s = param_region();
         $q = [
