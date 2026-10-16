@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Build | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
-<link rel="stylesheet" href="/assets/css/habilidades.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/habilidades.css?v=20261016d">
 <style>
   .crumb { color: var(--text-dim); font-size: 13px; margin: 8px 0 22px; }
   .crumb a { color: var(--text-dim); }
@@ -43,6 +43,10 @@
   .item-row > div { min-width:0; }
   .swaps { margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .swaps img { width:30px; height:30px; }
+  .swap-list { margin-top:4px; }
+  .swap-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px dashed rgba(255,255,255,.08); }
+  .swap-item > img { width:44px; height:44px; flex-shrink:0; }
+  .swap-item b { color:var(--text); font-size:13.5px; }
   @media (max-width: 860px) { .bd-layout { grid-template-columns: 1fr; } .doll { max-width:360px; } }
   .abil-group img[data-sp] { cursor: help; transition: transform .1s; }
   .abil-group img[data-sp]:hover { transform: scale(1.12); }
@@ -54,12 +58,12 @@
   <div class="crumb"><a href="/builds/">Builds</a> / <span id="crumb-name">Build</span></div>
   <div id="bd-root"><p class="subtitle">Carregando build...</p></div>
 </main>
-<script src="/assets/js/config.js?v=20261016c"></script>
-<script src="/assets/js/auth.js?v=20261016c"></script>
-<script src="/assets/js/common.js?v=20261016c"></script>
-<script src="/assets/js/shell.js?v=20261016c"></script>
-<script src="/assets/js/minhasbuilds.js?v=20261016c"></script>
-<script src="/assets/js/habilidades.js?v=20261016c"></script>
+<script src="/assets/js/config.js?v=20261016d"></script>
+<script src="/assets/js/auth.js?v=20261016d"></script>
+<script src="/assets/js/common.js?v=20261016d"></script>
+<script src="/assets/js/shell.js?v=20261016d"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261016d"></script>
+<script src="/assets/js/habilidades.js?v=20261016d"></script>
 <script>
 window.EmporioShell.renderTopbar("/builds/");
 const CFG = window.EMPORIO_CONFIG;
@@ -70,7 +74,7 @@ const SLOTS = [
 ];
 const MOUNT = {key:"mount",label:"Montaria"};
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
-function icon(id){ return CFG.RENDER_BASE + "/" + encodeURIComponent(id) + ".png?count=1&quality=1"; }
+function icon(id){ return "/icone/" + encodeURIComponent(id) + ".webp"; }
 // Ícones salvos no próprio site. Se faltar algum, tenta o render do Albion.
 function spellIcon(id){ return "/assets/img/spells/" + encodeURIComponent(id) + ".webp"; }
 function spellFallback(img){
@@ -144,7 +148,13 @@ function render(b, DB){
   }).join("");
   const rows = SLOTS.concat([MOUNT]).filter(function(sd){ return (eq[sd.key]||{}).item; }).map(function(sd){
     const s = eq[sd.key]; const id = s.item;
-    const swaps = (s.swaps||[]).length ? '<div class="swaps">Swaps: ' + s.swaps.map(function(w){ return '<img src="'+icon(w)+'" title="'+esc(itemName(DB,w))+'" alt="">'; }).join("") + '</div>' : '';
+    // Build da oficina: cada swap tem tier, encanto e habilidades próprias (b.spw). Na biblioteca, só os ícones.
+    const spw = (b.spw||{})[sd.key] || null;
+    const swaps = !(s.swaps||[]).length ? '' : spw ? '<div class="swap-list"><div class="slotname" style="margin-top:12px">Swaps</div>' + s.swaps.map(function(w){
+        const ch = spw[w.replace(/^T\d_/,"").replace(/@\d$/,"")] || null;
+        return '<div class="swap-item"><img src="'+icon(w)+'" alt=""><div style="min-width:0"><b>'+esc(itemName(DB,w))+'</b> <span class="muted small">'+tierLabel(w)+'</span>' + (ch ? abilitiesHtml(DB,w,ch) : '') + '</div></div>';
+      }).join("") + '</div>'
+      : '<div class="swaps">Swaps: ' + s.swaps.map(function(w){ return '<img src="'+icon(w)+'" title="'+esc(itemName(DB,w))+'" alt="">'; }).join("") + '</div>';
     return '<div class="item-row" id="row-'+sd.key+'"><img class="ic" src="'+icon(id)+'" alt=""><div style="min-width:0">' +
       '<div class="slotname">'+sd.label+' · '+tierLabel(id)+'</div><h3>'+esc(itemName(DB,id))+'</h3>' + abilitiesHtml(DB,id,(b.sp||{})[sd.key]) + swaps + '</div></div>';
   }).join("");

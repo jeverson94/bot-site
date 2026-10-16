@@ -54,7 +54,9 @@
   }
 
   function icon(id, quality) {
-    return CFG.RENDER_BASE + "/" + encodeURIComponent(id) + ".png?count=1&quality=" + (quality || 1) + "&size=128";
+    // Cópia guardada no próprio site (api/icone.php busca no render do Albion só na primeira vez).
+    const q = quality && quality > 1 ? "~q" + quality : "";
+    return "/icone/" + encodeURIComponent(id) + q + ".webp";
   }
 
   // Os ícones de habilidade ficam no próprio site (assets/img/spells), baixados

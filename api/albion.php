@@ -252,6 +252,7 @@ function status_log_update($now) {
 
 require __DIR__ . '/coleta.php';
 require __DIR__ . '/acompanhamento.php';
+require __DIR__ . '/icones_lib.php';
 
 $r = $_GET['r'] ?? '';
 
@@ -279,6 +280,14 @@ switch ($r) {
         $min = param_int('min', 5, 5, 1000);
         $q = mb_substr(trim((string)($_GET['q'] ?? '')), 0, 40);
         cached_or_build("lista:$s:$off:$min:" . mb_strtolower($q), 60, function () use ($s, $off, $min, $q) { return battle_list($s, $off, $min, $q); }, $s);
+        break;
+    }
+    case 'aquecer': {
+        // Baixa aos poucos os ícones de todos os itens do catálogo (chamado pelo agendamento).
+        $lockf = fopen(cache_dir() . '/icones.lock', 'c');
+        if (!$lockf || !flock($lockf, LOCK_EX | LOCK_NB)) { echo json_encode(['ocupado' => true]); break; }
+        if (!empty($_GET['esperar'])) { @set_time_limit(90); echo json_encode(icone_aquecer(45)); break; }
+        respond_then(json_encode(['iniciado' => true]), function () { @set_time_limit(120); icone_aquecer(70); });
         break;
     }
     case 'acompanhar': {

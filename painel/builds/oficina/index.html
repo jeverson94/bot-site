@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Oficina de builds | Empório dos Bots</title>
-<link rel="stylesheet" href="/assets/css/theme.css?v=20261016c">
-<link rel="stylesheet" href="/assets/css/pages.css?v=20261016c">
-<link rel="stylesheet" href="/assets/css/painel.css?v=20261016c">
-<link rel="stylesheet" href="/assets/css/habilidades.css?v=20261016c">
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/habilidades.css?v=20261016d">
 <style>
   .ws { display: grid; grid-template-columns: 250px minmax(330px, 440px) 1fr; gap: 16px; align-items: start; }
   .ws-col { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 14px; }
@@ -32,7 +32,7 @@
   .slot .nm { position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 9.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
   .slot .sw { position: absolute; top: 5px; right: 6px; font-size: 10px; font-weight: 800; color: #191305; background: var(--gold); border-radius: 5px; padding: 0 5px; }
   .slot.blocked { opacity: .35; cursor: not-allowed; }
-  .det { display: grid; grid-template-columns: 1fr 190px; gap: 16px; }
+  .det { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 16px; }
   .det-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .det-head img { width: 70px; height: 70px; cursor: pointer; border-radius: 10px; background: var(--bg-soft); }
   .det-head b { font-size: 16px; color: var(--text); display: block; }
@@ -42,11 +42,21 @@
   .sp-pick img { width: 100%; height: 100%; border-radius: 50%; display: block; }
   .sp-pick:hover { opacity: .9; }
   .sp-pick.on { border-color: #6fcf8e; opacity: 1; box-shadow: 0 0 10px rgba(111,207,142,.35); }
-  .swaps { border-left: 1px dashed rgba(255,255,255,.12); padding-left: 14px; }
-  .swap { display: flex; align-items: center; gap: 8px; background: var(--bg-soft); border-radius: 9px; padding: 5px 6px; margin-bottom: 6px; font-size: 12px; }
-  .swap img { width: 34px; height: 34px; }
-  .swap span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .swap button { background: none; border: none; color: var(--text-dim); cursor: pointer; }
+  .swaps { border-left: 1px dashed rgba(255,255,255,.12); padding-left: 14px; min-width: 0; }
+  .swap { background: var(--bg-soft); border-radius: 10px; padding: 6px; margin-bottom: 8px; font-size: 12px; border: 1px solid transparent; }
+  .swap.open { border-color: rgba(226,188,98,.35); }
+  .swap-h { display: flex; align-items: center; gap: 8px; }
+  .swap-h img { width: 38px; height: 38px; flex-shrink: 0; }
+  .swap-h span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: 600; }
+  .swap-h .x { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 4px 6px; }
+  .swap-o { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+  .swap-o .select { padding: 4px 6px; font-size: 12px; }
+  .swap-o .sk { background: none; border: 1px solid rgba(255,255,255,.12); color: var(--text-dim); border-radius: 7px; padding: 4px 8px; font-size: 11.5px; cursor: pointer; }
+  .swap.open .swap-o .sk { color: var(--gold); border-color: rgba(226,188,98,.45); }
+  .swap-sp { display: none; margin-top: 4px; }
+  .swap.open .swap-sp { display: block; }
+  .swap-sp .lbl { margin: 8px 0 6px; }
+  .swap-sp .sp-pick { width: 36px; height: 36px; }
   .swap-add { width: 100%; min-height: 120px; border: 1px dashed rgba(255,255,255,.18); border-radius: 10px; background: none; color: var(--text-dim); font-size: 26px; cursor: pointer; }
   .swap-add:hover { border-color: var(--gold); color: var(--gold); }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
@@ -101,13 +111,13 @@
   </div>
 </div>
 
-<script src="/assets/js/config.js?v=20261016c"></script>
-<script src="/assets/js/auth.js?v=20261016c"></script>
-<script src="/assets/js/common.js?v=20261016c"></script>
-<script src="/assets/js/shell.js?v=20261016c"></script>
-<script src="/assets/js/painel.js?v=20261016c"></script>
-<script src="/assets/js/minhasbuilds.js?v=20261016c"></script>
-<script src="/assets/js/habilidades.js?v=20261016c"></script>
+<script src="/assets/js/config.js?v=20261016d"></script>
+<script src="/assets/js/auth.js?v=20261016d"></script>
+<script src="/assets/js/common.js?v=20261016d"></script>
+<script src="/assets/js/shell.js?v=20261016d"></script>
+<script src="/assets/js/painel.js?v=20261016d"></script>
+<script src="/assets/js/minhasbuilds.js?v=20261016d"></script>
+<script src="/assets/js/habilidades.js?v=20261016d"></script>
 <script>
 EmporioShell.renderTopbar("/painel/");
 EmporioPainel.render("/painel/builds/");
@@ -233,9 +243,53 @@ function drawRight() {
       }).join("") + "</div>";
     }).join("") : '<p class="muted small" style="margin-top:12px">Esse item não tem habilidades para escolher.</p>') +
     '</div><div class="swaps"><div class="lbl" style="margin-top:0">Swaps</div>' +
-    swaps.map(function (w, i) {
-      return '<div class="swap"><img src="' + Emp.icon(w) + '" alt=""><span title="' + Emp.esc(nameOf(w)) + '">' + Emp.esc(Emp.itemBaseName(DB, w)) + '</span><button data-rmswap="' + i + '" title="Remover">✕</button></div>';
-    }).join("") + '<button class="swap-add" id="add-swap" title="Adicionar swap">+</button></div></div>';
+    swaps.map(function (w, i) { return swapHtml(slotDef, w, i); }).join("") +
+    '<button class="swap-add" id="add-swap" title="Adicionar swap">+</button></div></div>';
+  prefetch(slotDef.s, id);
+  swaps.forEach(function (w) { prefetch(slotDef.s, w); });
+}
+
+// Um swap: item com tier, encantamento e as habilidades escolhidas para ele.
+let openSwap = {};
+function swapSpells(w) {
+  cur.spw = cur.spw || {};
+  cur.spw[sel] = cur.spw[sel] || {};
+  const p = plainOf(w);
+  return (cur.spw[sel][p] = cur.spw[sel][p] || {});
+}
+function swapHtml(slotDef, w, i) {
+  const e = entryOf(slotDef.s, w) || { tiers: [tierOfId(w)] };
+  const t = tierOfId(w), en = enchOfId(w);
+  const g = (DB.items["T" + t + "_" + plainOf(w)] || {}).g || {};
+  const keys = Object.keys(g).sort(function (a, c) { return KEY_ORDER.indexOf(a) - KEY_ORDER.indexOf(c); });
+  const chosen = swapSpells(w);
+  const isOpen = openSwap[sel + ":" + i];
+  return '<div class="swap' + (isOpen ? " open" : "") + '"><div class="swap-h"><img src="' + Emp.icon(w) + '" alt=""><span title="' + Emp.esc(nameOf(w)) + '">' + Emp.esc(Emp.itemBaseName(DB, w)) + '</span><button class="x" data-rmswap="' + i + '" title="Remover">✕</button></div>' +
+    '<div class="swap-o"><select class="select" data-swt="' + i + '">' + e.tiers.map(function (x) { return '<option value="' + x + '"' + (x === t ? " selected" : "") + ">T" + x + "</option>"; }).join("") + "</select>" +
+    (NO_ENCH[slotDef.s] ? "" : '<select class="select" data-swe="' + i + '">' + [0, 1, 2, 3, 4].map(function (x) { return '<option value="' + x + '"' + (x === en ? " selected" : "") + ">" + (x ? "." + x : "Sem encanto") + "</option>"; }).join("") + "</select>") +
+    (keys.length ? '<button class="sk" data-swopen="' + i + '">' + (isOpen ? "Fechar" : "Habilidades") + "</button>" : "") + "</div>" +
+    (keys.length ? '<div class="swap-sp">' + keys.map(function (k) {
+      if (!chosen[k] || g[k].indexOf(chosen[k]) < 0) chosen[k] = g[k][0];
+      return '<div class="lbl">' + (/^P/.test(k) ? "Passivas" : "Slot " + k) + '</div><div class="sp-row">' + g[k].map(function (sid) {
+        return '<button class="sp-pick' + (chosen[k] === sid ? " on" : "") + '" data-sp="' + sid + '" data-k="' + k + '" data-sp-click data-swpick="' + k + '" data-swi="' + i + '"><img src="' + Emp.spellIcon(sid) + '" alt=""></button>';
+      }).join("") + "</div>";
+    }).join("") + "</div>" : "") + "</div>";
+}
+
+// Carrega em segundo plano todas as variações de tier e encanto do item, para a troca ser imediata.
+const prefetched = {};
+function prefetch(slotS, id) {
+  const e = entryOf(slotS, id);
+  if (!e) return;
+  const p = plainOf(id);
+  e.tiers.forEach(function (t) {
+    (NO_ENCH[slotS] || t < 4 ? [0] : [0, 1, 2, 3, 4]).forEach(function (en) {
+      const v = makeId(p, t, en);
+      if (prefetched[v]) return;
+      prefetched[v] = 1;
+      const im = new Image(); im.decoding = "async"; im.src = Emp.icon(v);
+    });
+  });
 }
 
 function drawAll() { drawList(); drawCenter(); drawRight(); }
@@ -329,7 +383,23 @@ $("right").addEventListener("click", function (e) {
     return;
   }
   const rs = t.closest("[data-rmswap]");
-  if (rs) { cur.equip[sel].swaps.splice(parseInt(rs.dataset.rmswap, 10), 1); touch(); drawCenter(); drawRight(); return; }
+  if (rs) {
+    const w = cur.equip[sel].swaps.splice(parseInt(rs.dataset.rmswap, 10), 1)[0];
+    // Habilidades do swap removido saem junto, se não houver outro swap do mesmo item.
+    if (cur.spw && cur.spw[sel] && !cur.equip[sel].swaps.some(function (x) { return plainOf(x) === plainOf(w); })) delete cur.spw[sel][plainOf(w)];
+    openSwap = {};
+    touch(); drawCenter(); drawRight(); return;
+  }
+  const so = t.closest("[data-swopen]");
+  if (so) { const k = sel + ":" + so.dataset.swopen; openSwap[k] = !openSwap[k]; drawRight(); return; }
+  const swp = t.closest("[data-swpick]");
+  if (swp) {
+    const w = cur.equip[sel].swaps[parseInt(swp.dataset.swi, 10)];
+    swapSpells(w)[swp.dataset.swpick] = swp.dataset.sp;
+    touch();
+    swp.parentElement.querySelectorAll(".sp-pick").forEach(function (x) { x.classList.toggle("on", x === swp); });
+    return;
+  }
   const sp = t.closest("[data-pick]");
   if (sp) {
     cur.sp[sel][sp.dataset.pick] = sp.dataset.sp;
@@ -341,19 +411,12 @@ $("right").addEventListener("change", function (e) {
   const st = cur.equip[sel];
   if (!st) return;
   const p = plainOf(st.item);
-  if (e.target.id === "tier") {
-    st.item = makeId(p, parseInt(e.target.value, 10), enchOfId(st.item));
-    st.swaps = (st.swaps || []).map(function (w) {
-      const x = entryOf(MB.SLOTS.find(function (s) { return s.k === sel; }).s, w);
-      const t = parseInt(e.target.value, 10);
-      return x && x.tiers.indexOf(t) >= 0 ? makeId(x.p, t, enchOfId(w)) : w;
-    });
-  }
-  if (e.target.id === "ench") {
-    const en = parseInt(e.target.value, 10);
-    st.item = makeId(p, tierOfId(st.item), en);
-    st.swaps = (st.swaps || []).map(function (w) { return makeId(plainOf(w), tierOfId(w), en); });
-  }
+  const d = e.target.dataset;
+  if (e.target.id === "tier") st.item = makeId(p, parseInt(e.target.value, 10), enchOfId(st.item));
+  if (e.target.id === "ench") st.item = makeId(p, tierOfId(st.item), parseInt(e.target.value, 10));
+  // Cada swap tem o próprio tier e encanto.
+  if (d.swt != null) { const i = +d.swt, w = st.swaps[i]; st.swaps[i] = makeId(plainOf(w), parseInt(e.target.value, 10), enchOfId(w)); }
+  if (d.swe != null) { const i = +d.swe, w = st.swaps[i]; st.swaps[i] = makeId(plainOf(w), tierOfId(w), parseInt(e.target.value, 10)); }
   touch(); drawCenter(); drawRight();
 });
 
@@ -361,6 +424,7 @@ $("list").addEventListener("click", function (e) {
   const it = e.target.closest("[data-id]");
   if (!it) return;
   cur = MB.get(it.dataset.id);
+  cur.spw = cur.spw || {}; openSwap = {};
   history.replaceState(null, "", "?id=" + cur.id);
   drawAll();
 });
@@ -408,7 +472,7 @@ Emp.items().then(function (d) {
   const qs = new URLSearchParams(location.search);
   if (qs.get("new") || !builds.length) { cur = MB.blank(); MB.put(cur); builds = MB.list(); history.replaceState(null, "", "?id=" + cur.id); }
   else cur = (qs.get("id") && MB.get(qs.get("id"))) || builds[0];
-  cur.sp = cur.sp || {}; cur.conteudo = cur.conteudo || []; cur.equip = cur.equip || {};
+  cur.sp = cur.sp || {}; cur.spw = cur.spw || {}; cur.conteudo = cur.conteudo || []; cur.equip = cur.equip || {};
   drawAll();
 });
 </script>

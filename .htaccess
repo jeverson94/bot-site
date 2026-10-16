@@ -14,6 +14,10 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^clipes/([^/]+)/?$ /clipes/index.html [L]
 
+# Ícone de item ainda não guardado no site: o PHP busca no render do Albion e grava.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^icone/([A-Za-z0-9_@~]+)\.webp$ /api/icone.php?f=$1 [L,QSA]
+
 # Painel antigo: o backend ainda manda para /dashboard/config
 RedirectMatch 302 ^/dashboard(/.*)?$ /painel/guildas/
 

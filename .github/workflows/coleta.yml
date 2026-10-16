@@ -22,5 +22,7 @@ jobs:
             curl -s -m 60 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=coletar&s=$s" &
             curl -s -m 60 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=coletar&s=$s&parte=guildas" &
           done
+          # Ícones dos itens: baixa os que ainda faltam (termina sozinho quando todos estiverem no site).
+          curl -s -m 60 "https://seagreen-rat-589164.hostingersite.com/api/albion.php?r=aquecer" &
           wait
           echo

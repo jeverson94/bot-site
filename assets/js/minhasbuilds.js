@@ -1,6 +1,7 @@
 // Builds do jogador, guardadas neste navegador. O formato do equipamento é o
 // mesmo da biblioteca pública ({slot: {item, swaps}}), com as habilidades
-// escolhidas em "sp" ({slot: {Q: "ID", W: "ID", P1: "ID"}}).
+// escolhidas em "sp" ({slot: {Q: "ID", W: "ID", P1: "ID"}}) e as dos swaps em
+// "spw" ({slot: {item sem tier: {Q: "ID", ...}}}).
 (function () {
   const KEY = "emp_builds_v1";
 
@@ -29,10 +30,10 @@
   }
   function remove(id) { return saveAll(list().filter(function (b) { return b.id !== id; })); }
   function blank() {
-    return { id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome: "", papel: "", conteudo: [], notas: "", equip: {}, sp: {}, atualizado: Date.now() };
+    return { id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome: "", papel: "", conteudo: [], notas: "", equip: {}, sp: {}, spw: {}, atualizado: Date.now() };
   }
   function encode(b) {
-    const slim = { nome: b.nome, papel: b.papel, conteudo: b.conteudo, notas: b.notas, equip: b.equip, sp: b.sp };
+    const slim = { nome: b.nome, papel: b.papel, conteudo: b.conteudo, notas: b.notas, equip: b.equip, sp: b.sp, spw: b.spw };
     return btoa(unescape(encodeURIComponent(JSON.stringify(slim)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
   function decode(s) { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))))); }
