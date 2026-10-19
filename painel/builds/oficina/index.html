@@ -92,7 +92,9 @@
           <label class="btn secondary" style="cursor:pointer">Importar<input type="file" id="imp" accept="application/json" hidden></label>
           <button class="btn secondary" id="share">Copiar link</button>
         </div>
-        <a class="btn" href="/painel/builds/" style="margin-top:8px">Voltar para Builds</a>
+        <button class="btn" id="send-srv" style="margin-top:8px">Enviar pro servidor do Discord</button>
+        <div id="send-box" class="small" style="margin-top:6px"></div>
+        <a class="btn secondary" href="/painel/builds/" style="margin-top:8px">Voltar para Builds</a>
         <div class="saved-ind" id="saved"></div>
       </div>
 
@@ -118,6 +120,7 @@
 <script src="/assets/js/painel.js?v=20261019b"></script>
 <script src="/assets/js/minhasbuilds.js?v=20261016d"></script>
 <script src="/assets/js/habilidades.js?v=20261016d"></script>
+<script src="/assets/js/servidor.js?v=20261019c"></script>
 <script>
 EmporioShell.renderTopbar("/painel/");
 EmporioPainel.render("/painel/builds/");
@@ -475,6 +478,28 @@ Emp.items().then(function (d) {
   cur.sp = cur.sp || {}; cur.spw = cur.spw || {}; cur.conteudo = cur.conteudo || []; cur.equip = cur.equip || {};
   drawAll();
 });
+
+// ---------- enviar pro servidor (biblioteca do bot) ----------
+async function enviarServidor(gid, gname) {
+  const box = $("send-box");
+  box.textContent = "Enviando pro " + gname + "...";
+  try {
+    const r = await EmpServidor.post(gid, "/api/servidor/builds", { id: cur.srv && cur.srv.g === gid ? cur.srv.id : "", nome: cur.nome || "Sem título", papel: cur.papel || "", equip: cur.equip || {}, notas: cur.notas || "" });
+    cur.srv = { g: gid, gn: gname, id: r.build.id };
+    MB.put(cur);
+    box.innerHTML = "Salvo no bot do " + Emp.esc(gname) + ". Já dá pra ligar essa build numa vaga da composição.";
+  } catch (e) { box.textContent = e.message; }
+}
+$("send-srv").onclick = async function () {
+  const box = $("send-box");
+  if (!window.EmporioAuth.getToken()) { box.innerHTML = '<a href="' + window.EmporioAuth.loginUrl() + '">Entre com o Discord</a> pra mandar a build pro bot.'; return; }
+  if (cur.srv) return enviarServidor(cur.srv.g, cur.srv.gn || "servidor");
+  const gs = await EmpServidor.lista();
+  if (!gs.length) { box.innerHTML = 'Nenhum servidor seu tem o bot. <a href="' + EmpServidor.INVITE + '" target="_blank" rel="noopener">Adicionar o bot</a>.'; return; }
+  if (gs.length === 1) return enviarServidor(gs[0].id, gs[0].name);
+  box.innerHTML = '<div class="row wrap" style="gap:6px"><select class="select" id="send-g">' + gs.map(function (g) { return '<option value="' + g.id + '">' + Emp.esc(g.name) + "</option>"; }).join("") + '</select><button class="btn secondary" id="send-ok" style="padding:6px 12px">Enviar</button></div>';
+  $("send-ok").onclick = function () { const g = gs.find(function (x) { return x.id === $("send-g").value; }); enviarServidor(g.id, g.name); };
+};
 </script>
 </body>
 </html>

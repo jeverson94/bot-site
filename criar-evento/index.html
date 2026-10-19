@@ -18,11 +18,12 @@
   <section class="page-hero">
     <div class="eyebrow">Eventos</div>
     <h1>Criar evento</h1>
-    <p class="subtitle">Preencha a call e copie o anúncio para o Discord. O horário vai no formato que o Discord converte sozinho, então cada membro vê no próprio fuso. O link do evento mostra uma página com contagem regressiva.</p>
+    <p class="subtitle">Poste a call pelo bot direto no canal do Discord, com as vagas e o loot de cada uma. Se preferir, mais abaixo dá pra montar só o anúncio e copiar.</p>
   </section>
 
-  <div id="ponte-bot"></div>
+  <div id="ponte-bot" data-modo="criar"></div>
 
+  <h2 style="margin:8px 0 12px">Só o anúncio, sem o bot</h2>
   <div class="grid2">
     <div class="card">
       <label class="field">Título<input class="input" id="titulo" placeholder="Ex.: ZvZ de castelo" maxlength="80"></label>
@@ -66,7 +67,8 @@
 <script src="/assets/js/common.js?v=20261016d"></script>
 <script src="/assets/js/shell.js?v=20261016d"></script>
 <script src="/assets/js/eventos.js?v=20261016d"></script>
-<script src="/assets/js/ponte-bot.js?v=20261019a"></script>
+<script src="/assets/js/servidor.js?v=20261019c"></script>
+<script src="/assets/js/ponte-bot.js?v=20261019c"></script>
 <script>
 EmporioShell.renderTopbar("/criar-evento/");
 

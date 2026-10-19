@@ -25,9 +25,10 @@
   <aside class="painel-side" id="painel-side"></aside>
   <main class="painel-main">
     <div class="painel-head">
-      <div><h1>Builds</h1><p class="subtitle" style="margin:0">Suas builds, salvas neste navegador. Monte o equipamento, escolha as habilidades e os swaps, e mande o link para a guilda.</p></div>
+      <div><h1>Builds</h1><p class="subtitle" style="margin:0">Suas builds e as builds de cada servidor do Discord com o bot. As do servidor são as que o bot manda por DM no ping.</p></div>
       <div class="row"><a class="btn" href="/painel/builds/oficina/?new=1">Nova build</a><a class="btn secondary" href="/painel/builds/oficina/">Editar builds</a></div>
     </div>
+    <div id="srvbar"></div>
     <div class="tags row wrap" id="roles"></div>
     <div class="filters">
       <label class="field">Filtrar pelo nome<input class="input" id="fn" placeholder="Título da build"></label>
@@ -42,11 +43,12 @@
 <script src="/assets/js/shell.js?v=20261016d"></script>
 <script src="/assets/js/painel.js?v=20261019b"></script>
 <script src="/assets/js/minhasbuilds.js?v=20261016d"></script>
+<script src="/assets/js/servidor.js?v=20261019c"></script>
 <script>
 EmporioShell.renderTopbar("/painel/");
 EmporioPainel.render("/painel/builds/");
 const MB = window.MinhasBuilds;
-let role = "", DB = null;
+let role = "", DB = null, SRV = null, SRV_LIST = [], SRV_ERR = "";
 
 document.getElementById("roles").innerHTML = MB.ROLES.map(function (r) {
   return '<span class="chip" data-r="' + r.k + '"><span class="dot" style="background:' + r.c + '"></span>' + r.n + "</span>";
@@ -61,7 +63,7 @@ document.getElementById("roles").addEventListener("click", function (e) {
 ["fn", "fg"].forEach(function (id) { document.getElementById(id).addEventListener("input", draw); });
 
 function draw() {
-  const all = MB.list();
+  const all = SRV ? SRV_LIST : MB.list();
   const fn = document.getElementById("fn").value.trim().toLowerCase();
   const fg = document.getElementById("fg").value.trim().toLowerCase();
   const list = all.filter(function (b) {
@@ -74,6 +76,8 @@ function draw() {
     return true;
   });
   const g = document.getElementById("grid");
+  if (SRV && SRV_ERR) { g.innerHTML = '<p class="muted">' + Emp.esc(SRV_ERR) + "</p>"; return; }
+  if (SRV && !all.length) { g.innerHTML = '<div class="card" style="padding:28px"><h2>Nenhuma build no ' + Emp.esc(SRV.name) + '</h2><p class="muted">Monte uma build em Nova build e use o botão Enviar pro servidor.</p></div>'; return; }
   if (!all.length) {
     g.innerHTML = '<div class="card" style="padding:28px"><h2>Nenhuma build ainda</h2><p class="muted" style="max-width:560px">Monte uma build aqui: escolha os itens, o tier, as habilidades e os swaps de cada parte. Ela fica salva neste navegador e pode ser compartilhada por link.</p><a class="btn" href="/painel/builds/oficina/?new=1">Nova build</a></div>';
     return;
@@ -81,17 +85,33 @@ function draw() {
   const slots = ["mainhand", "offhand", "head", "chest", "shoes"];
   g.innerHTML = list.length ? '<div class="bgrid">' + list.map(function (b) {
     const r = MB.role(b.papel);
-    return '<div class="bcard" data-id="' + b.id + '"><div class="row between small"><span class="row" style="gap:6px">' + (r ? '<span class="dot" style="background:' + r.c + '"></span>' + r.n : '<span class="muted">Sem função</span>') + '</span><span class="muted">' + Emp.ago(b.atualizado) + "</span></div>" +
+    return '<div class="bcard" data-id="' + Emp.esc(b.id) + '"><div class="row between small"><span class="row" style="gap:6px">' + (r ? '<span class="dot" style="background:' + r.c + '"></span>' + r.n : '<span class="muted">Sem função</span>') + '</span><span class="muted">' + Emp.ago(b.atualizado) + "</span></div>" +
       '<div class="mini">' + slots.map(function (s) { const it = b.equip[s] && b.equip[s].item; return "<div>" + (it ? '<img src="' + Emp.icon(it) + '" alt="" loading="lazy">' : "") + "</div>"; }).join("") + "</div>" +
-      "<h3>" + Emp.esc(b.nome || "Sem título") + "</h3>" + (b.conteudo && b.conteudo.length ? '<div class="row wrap" style="gap:5px">' + b.conteudo.map(function (c) { return '<span class="badge">' + Emp.esc(c) + "</span>"; }).join("") + "</div>" : "") + "</div>";
+      "<h3>" + Emp.esc(b.nome || "Sem título") + "</h3>" + (SRV ? '<div class="row wrap" style="gap:5px">' + (b.publica ? '<span class="badge gold">Pública</span>' : '<span class="badge">Só do servidor</span>') + (b.categoria ? '<span class="badge">' + Emp.esc(b.categoria) + "</span>" : "") + "</div>" : "") + (b.conteudo && b.conteudo.length ? '<div class="row wrap" style="gap:5px">' + b.conteudo.map(function (c) { return '<span class="badge">' + Emp.esc(c) + "</span>"; }).join("") + "</div>" : "") + "</div>";
   }).join("") + "</div>" : '<p class="muted">Nenhuma build com esses filtros.</p>';
 }
 document.getElementById("grid").addEventListener("click", function (e) {
   const c = e.target.closest("[data-id]");
-  if (c) location.href = "/painel/builds/oficina/?id=" + encodeURIComponent(c.dataset.id);
+  if (!c) return;
+  if (!SRV) { location.href = "/painel/builds/oficina/?id=" + encodeURIComponent(c.dataset.id); return; }
+  // build do servidor: abre uma copia na oficina ligada a ela (Enviar pro servidor atualiza a original)
+  const b = SRV_LIST.find(function (x) { return x.id === c.dataset.id; });
+  const local = Object.assign(MB.blank(), { id: "srv_" + SRV.id + "_" + b.id, nome: b.nome, papel: b.papel || "", notas: b.notas || "", equip: b.equip || {}, srv: { g: SRV.id, gn: SRV.name, id: b.id } });
+  const ja = MB.get(local.id);
+  if (ja) { local.sp = ja.sp || {}; local.spw = ja.spw || {}; local.conteudo = ja.conteudo || []; }
+  MB.put(local);
+  location.href = "/painel/builds/oficina/?id=" + encodeURIComponent(local.id);
 });
 draw();
 Emp.items().then(function (d) { DB = d; draw(); });
+EmpServidor.barra(document.getElementById("srvbar"), { local: true, rotulo: "Mostrar:", onChange: async function (g) {
+  SRV = g || null; SRV_ERR = "";
+  if (SRV) {
+    document.getElementById("grid").innerHTML = Emp.loading("Carregando as builds do " + Emp.esc(SRV.name) + "...");
+    try { SRV_LIST = (await EmpServidor.api(SRV.id, "/api/servidor/builds")).builds; } catch (e) { SRV_LIST = []; SRV_ERR = e.message; }
+  }
+  draw();
+} });
 </script>
 </body>
 </html>
