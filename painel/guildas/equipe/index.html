@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Equipe do bot | Empório dos Bots</title>
+<link rel="stylesheet" href="/assets/css/theme.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/pages.css?v=20261016d">
+<link rel="stylesheet" href="/assets/css/painel.css?v=20261016d">
+<style>
+  .lvl { display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom:6px; }
+  .lvl .card p { margin:0; font-size:13px; }
+  .lvl .card b { display:block; font-size:15px; margin-bottom:4px; }
+  .pess { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+  .tag { display:inline-flex; align-items:center; gap:8px; background:var(--bg-soft); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:4px 6px 4px 6px; font-size:13px; }
+  .tag img { width:22px; height:22px; border-radius:50%; }
+  .tag .cor { width:10px; height:10px; border-radius:50%; margin-left:4px; }
+  .tag button { background:none; border:0; color:var(--text-dim); cursor:pointer; font-size:14px; padding:0 4px; }
+  .tag button:hover { color:#e66a6a; }
+  .busca { position:relative; }
+  .sug { position:absolute; z-index:20; left:0; right:0; top:calc(100% + 4px); background:var(--card); border:1px solid rgba(226,188,98,.3); border-radius:10px; max-height:260px; overflow:auto; display:none; box-shadow:var(--shadow); }
+  .sug.open { display:block; }
+  .sug div { display:flex; gap:10px; align-items:center; padding:8px 12px; cursor:pointer; font-size:13.5px; }
+  .sug div:hover { background:var(--gold-soft); }
+  .sug img { width:24px; height:24px; border-radius:50%; }
+  @media (max-width: 760px) { .lvl { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div id="topbar-root"></div>
+<div class="painel">
+  <aside class="painel-side" id="painel-side"></aside>
+  <main class="painel-main">
+    <div class="painel-head"><div><h1>Equipe do bot</h1><p class="subtitle" style="margin:0">Quem pode pingar e quem mexe no saldo do bot no Discord. O que você muda aqui vale na hora no servidor.</p></div></div>
+    <div id="srv"></div>
+    <div id="root"></div>
+  </main>
+</div>
+<script src="/assets/js/config.js?v=20261016d"></script>
+<script src="/assets/js/auth.js?v=20261016d"></script>
+<script src="/assets/js/common.js?v=20261016d"></script>
+<script src="/assets/js/shell.js?v=20261016d"></script>
+<script src="/assets/js/painel.js?v=20261019b"></script>
+<script>
+EmporioShell.renderTopbar("/painel/");
+EmporioPainel.render("/painel/guildas/equipe/");
+const $ = function (id) { return document.getElementById(id); };
+const A = window.EmporioAuth;
+const esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+const prata = function (v) { return Math.round(v || 0).toLocaleString("pt-BR"); };
+const NOME_NIVEL = { admin: "Admin do servidor", gestor: "Gestor de saldo", caller: "Caller" };
+let G = null, guilds = [];
+
+async function api(path, opts) {
+  const sep = path.indexOf("?") >= 0 ? "&" : "?";
+  const r = await A.apiFetch(path + sep + "guild_id=" + encodeURIComponent(G.id), opts);
+  if (r.status === 403) throw new Error("Você não tem permissão pra isso neste servidor.");
+  if (!r.ok) throw new Error("O servidor do bot não respondeu (" + r.status + "). Tente de novo.");
+  return r.json();
+}
+function post(path, body) { return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+
+async function init() {
+  const me = await A.me();
+  if (!me) {
+    $("root").innerHTML = '<div class="card"><h2>Entre com o Discord</h2><p class="muted">Precisa estar logado pra ver a equipe do seu servidor.</p><a class="btn" href="' + A.loginUrl() + '">Entrar com Discord</a></div>';
+    return;
+  }
+  guilds = (me.admin_guilds || []).filter(function (g) { return !g.personal; });
+  if (!guilds.length) {
+    $("root").innerHTML = '<div class="card"><h2>Nenhum servidor</h2><p class="muted">Você não é admin nem faz parte da equipe do bot em nenhum servidor. Se acabou de ser liberado, saia e entre de novo.</p></div>';
+    return;
+  }
+  let salvo = null; try { salvo = localStorage.getItem("emp_equipe_srv"); } catch (e) {}
+  G = guilds.find(function (g) { return g.id === salvo; }) || guilds[0];
+  if (guilds.length > 1) {
+    $("srv").innerHTML = '<div class="row wrap" style="margin-bottom:16px"><span class="muted small">Servidor:</span>' + guilds.map(function (g) {
+      return '<span class="chip' + (g.id === G.id ? " on" : "") + '" data-g="' + g.id + '">' + esc(g.name) + "</span>";
+    }).join("") + "</div>";
+  }
+  load();
+}
+$("srv").addEventListener("click", function (e) {
+  const c = e.target.closest("[data-g]"); if (!c) return;
+  G = guilds.find(function (g) { return g.id === c.dataset.g; });
+  try { localStorage.setItem("emp_equipe_srv", G.id); } catch (e2) {}
+  $("srv").querySelectorAll(".chip").forEach(function (x) { x.classList.toggle("on", x === c); });
+  load();
+});
+
+let EQ = null;
+async function load() {
+  $("root").innerHTML = Emp.loading("Carregando a equipe...");
+  try { EQ = await api("/api/equipe"); } catch (e) { $("root").innerHTML = '<p class="muted">' + esc(e.message) + "</p>"; return; }
+  const nivel = EQ.meu_nivel, admin = nivel === "admin", saldo = nivel === "admin" || nivel === "gestor";
+  let h = '<p class="small" style="margin:0 0 14px">Seu nível em <b>' + esc(G.name) + '</b>: <span class="badge gold">' + (NOME_NIVEL[nivel] || "membro") + "</span></p>";
+  h += '<div class="lvl"><div class="card"><b>Admin do servidor</b><p class="muted">Quem tem Administrador ou Gerenciar Servidor no Discord. Faz tudo e decide a equipe.</p></div>' +
+    '<div class="card"><b>Gestor de saldo</b><p class="muted">Adiciona, remove e quita saldo. Também pode pingar.</p></div>' +
+    '<div class="card"><b>Caller</b><p class="muted">Pinga conteúdo, cria e encerra eventos, monta composições. Não mexe no saldo.</p></div></div>';
+  ["gestor", "caller"].forEach(function (n) { h += blocoNivel(n, admin); });
+  if (admin) h += '<p class="muted small">Prefere fazer pelo Discord? <code>/permissao criar-cargos</code> cria os cargos Caller e Gestor de Saldo já ligados.</p>';
+  if (saldo) h += '<div class="section" id="saldo-sec"><h2>Saldo do bot</h2><p class="subtitle">O mesmo saldo que cada um vê com <code>/saldo membro</code> no Discord.</p><div id="saldo"></div></div>';
+  $("root").innerHTML = h;
+  if (saldo) carregarSaldo();
+}
+
+function blocoNivel(n, admin) {
+  const b = EQ.equipe[n];
+  const pessoas = b.pessoas.map(function (p) {
+    return '<span class="tag">' + (p.avatar ? '<img src="' + esc(p.avatar) + '" alt="">' : "") + esc(p.nome) +
+      (admin ? '<button title="Tirar" data-rm="' + n + '|pessoas|' + p.id + '">✕</button>' : "") + "</span>";
+  }).join("");
+  const cargos = b.cargos.map(function (c) {
+    return '<span class="tag"><span class="cor" style="background:' + (c.cor || "#8b93a3") + '"></span>@' + esc(c.nome) +
+      (admin ? '<button title="Tirar" data-rm="' + n + '|cargos|' + c.id + '">✕</button>' : "") + "</span>";
+  }).join("");
+  let h = '<div class="card" style="margin-top:14px"><h2>' + (n === "gestor" ? "Gestores de saldo" : "Callers") + "</h2>" +
+    '<div class="muted small">Cargos que liberam</div><div class="pess">' + (cargos || '<span class="muted small">Nenhum cargo.</span>') + "</div>" +
+    '<div class="muted small" style="margin-top:8px">Pessoas</div><div class="pess">' + (pessoas || '<span class="muted small">Ninguém.</span>') + "</div>";
+  if (admin) {
+    const opts = EQ.cargos_do_servidor.filter(function (c) { return !b.cargos.some(function (x) { return x.id === c.id; }); })
+      .map(function (c) { return '<option value="' + c.id + '">@' + esc(c.nome) + "</option>"; }).join("");
+    h += '<div class="grid2" style="margin-top:12px"><div class="busca"><input class="input" style="width:100%" placeholder="Adicionar pessoa: digite o nome" data-busca="' + n + '"><div class="sug"></div></div>' +
+      '<div class="row"><select class="select" style="flex:1" id="cg-' + n + '"><option value="">Ligar um cargo...</option>' + opts + '</select><button class="btn secondary" data-addcargo="' + n + '">Ligar</button></div></div>';
+  }
+  return h + "</div>";
+}
+
+let tBusca = null;
+document.addEventListener("input", function (e) {
+  const inp = e.target.closest("[data-busca]"); if (!inp) return;
+  const box = inp.nextElementSibling;
+  clearTimeout(tBusca);
+  const q = inp.value.trim();
+  if (q.length < 2) { box.classList.remove("open"); return; }
+  tBusca = setTimeout(async function () {
+    try {
+      const d = await api("/api/membros?q=" + encodeURIComponent(q));
+      box.innerHTML = (d.membros || []).map(function (m) {
+        return '<div data-pick="' + m.id + '" data-nome="' + esc(m.nome) + '">' + (m.avatar ? '<img src="' + esc(m.avatar) + '" alt="">' : "") + esc(m.nome) + ' <span class="muted small">' + esc(m.usuario) + "</span></div>";
+      }).join("") || '<div class="muted">Ninguém com esse nome.</div>';
+      box.classList.add("open");
+    } catch (err) { box.innerHTML = '<div class="muted">' + esc(err.message) + "</div>"; box.classList.add("open"); }
+  }, 250);
+});
+
+document.addEventListener("click", async function (e) {
+  const pick = e.target.closest("[data-pick]");
+  if (pick) {
+    const busca = pick.closest(".busca");
+    const inp = busca.querySelector("input");
+    busca.querySelector(".sug").classList.remove("open");
+    if (inp.dataset.busca) {
+      await alterar(inp.dataset.busca, "pessoas", pick.dataset.pick, "adicionar");
+    } else if (inp.id === "aj-quem") {
+      inp.value = pick.dataset.nome; inp.dataset.id = pick.dataset.pick;
+    }
+    return;
+  }
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { const p = rm.dataset.rm.split("|"); await alterar(p[0], p[1], p[2], "remover"); return; }
+  const ac = e.target.closest("[data-addcargo]");
+  if (ac) { const v = $("cg-" + ac.dataset.addcargo).value; if (v) await alterar(ac.dataset.addcargo, "cargos", v, "adicionar"); return; }
+  if (!e.target.closest(".busca")) document.querySelectorAll(".sug").forEach(function (s) { s.classList.remove("open"); });
+});
+
+async function alterar(nivel, tipo, id, acao) {
+  try { await post("/api/equipe", { nivel: nivel, tipo: tipo, id: id, acao: acao }); load(); }
+  catch (e) { alert(e.message); }
+}
+
+async function carregarSaldo() {
+  const el = $("saldo");
+  el.innerHTML = Emp.loading("Carregando saldos...");
+  try {
+    const d = await api("/api/saldo/todos");
+    const lista = d.saldos || [];
+    const total = lista.reduce(function (s, x) { return s + (x.valor || 0); }, 0);
+    el.innerHTML =
+      '<div class="card"><h3>Adicionar ou remover</h3><div class="grid2">' +
+      '<div class="busca"><input class="input" style="width:100%" id="aj-quem" placeholder="Membro: digite o nome"><div class="sug"></div></div>' +
+      '<div class="row"><select class="select" id="aj-tipo"><option value="1">Adicionar</option><option value="-1">Remover</option></select><input class="input" id="aj-valor" type="number" min="0" placeholder="Valor em prata" style="flex:1"></div></div>' +
+      '<div class="row" style="margin-top:10px"><input class="input" id="aj-motivo" placeholder="Motivo (vai pro histórico)" style="flex:1"><button class="btn" id="aj-ok">Salvar</button></div><p class="muted small" id="aj-msg" style="margin:8px 0 0"></p></div>' +
+      '<div class="stats" style="margin:14px 0"><div class="stat"><b>' + prata(total) + '</b><span>Total em saldo</span></div><div class="stat"><b>' + lista.filter(function (x) { return x.valor; }).length + '</b><span>Pessoas com saldo</span></div></div>' +
+      '<div class="table-wrap"><table class="table"><thead><tr><th>Membro</th><th class="num">Saldo</th><th></th></tr></thead><tbody>' +
+      (lista.map(function (x) {
+        return "<tr><td>" + esc(x.nome || x.discord_id) + '</td><td class="num ' + (x.valor > 0 ? "good" : x.valor < 0 ? "bad" : "") + '">' + prata(x.valor) +
+          '</td><td class="num small">' + (x.valor ? '<a href="#" data-quitar="' + x.discord_id + '" data-n="' + esc(x.nome || "") + '">quitar (pago)</a>' : "") + "</td></tr>";
+      }).join("") || '<tr><td colspan="3" class="muted">Ninguém tem saldo ainda.</td></tr>') + "</tbody></table></div>";
+    const quem = $("aj-quem"); quem.dataset.busca = ""; quem.removeAttribute("data-busca");
+    quem.addEventListener("input", function () {
+      quem.dataset.id = "";
+      const box = quem.nextElementSibling; const q = quem.value.trim();
+      clearTimeout(tBusca);
+      if (q.length < 2) { box.classList.remove("open"); return; }
+      tBusca = setTimeout(async function () {
+        const r = await api("/api/membros?q=" + encodeURIComponent(q));
+        box.innerHTML = (r.membros || []).map(function (m) { return '<div data-pick="' + m.id + '" data-nome="' + esc(m.nome) + '">' + (m.avatar ? '<img src="' + esc(m.avatar) + '" alt="">' : "") + esc(m.nome) + "</div>"; }).join("") || '<div class="muted">Ninguém com esse nome.</div>';
+        box.classList.add("open");
+      }, 250);
+    });
+    $("aj-ok").onclick = async function () {
+      const v = parseFloat($("aj-valor").value) * parseInt($("aj-tipo").value, 10);
+      if (!quem.dataset.id) { $("aj-msg").textContent = "Escolha o membro na lista que aparece ao digitar."; return; }
+      if (!v) { $("aj-msg").textContent = "Coloque um valor."; return; }
+      try {
+        const r = await post("/api/saldo/ajustar", { discord_id: quem.dataset.id, nome: quem.value, valor: v, motivo: $("aj-motivo").value });
+        $("aj-msg").textContent = "Feito. Saldo de " + quem.value + " agora: " + prata(r.novo_saldo) + " prata.";
+        setTimeout(carregarSaldo, 900);
+      } catch (e) { $("aj-msg").textContent = e.message; }
+    };
+  } catch (e) { el.innerHTML = '<p class="muted">' + esc(e.message) + "</p>"; }
+}
+document.addEventListener("click", async function (e) {
+  const q = e.target.closest("[data-quitar]"); if (!q) return;
+  e.preventDefault();
+  if (!confirm("Marcar o saldo de " + (q.dataset.n || "essa pessoa") + " como pago? Ele volta pra zero.")) return;
+  try { await post("/api/saldo/quitar", { discord_id: q.dataset.quitar }); carregarSaldo(); } catch (err) { alert(err.message); }
+});
+
+init();
+</script>
+</body>
+</html>

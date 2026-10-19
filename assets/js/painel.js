@@ -31,6 +31,7 @@
       { href: "/painel/guildas/batalhas/", label: "Batalhas", ic: "swords" },
       { href: "/painel/guildas/regears/", label: "Regears", ic: "shield" },
       { href: "/painel/guildas/saldo/", label: "Saldo", ic: "coins" },
+      { href: "/painel/guildas/equipe/", label: "Equipe do bot", ic: "shield" },
     ]},
     { label: "Estatísticas", items: [
       { href: "/painel/presenca/", label: "Presença", ic: "chart" },
