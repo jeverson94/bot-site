@@ -282,6 +282,12 @@ switch ($r) {
         cached_or_build("lista:$s:$off:$min:" . mb_strtolower($q), 60, function () use ($s, $off, $min, $q) { return battle_list($s, $off, $min, $q); }, $s);
         break;
     }
+    case 'luta': {
+        $s = param_region();
+        $id = (int)param_id('id', '/^\d{1,15}$/');
+        cached_or_build("luta:$s:$id", 120, function () use ($s, $id) { return battle_neighbors($s, $id); }, $s);
+        break;
+    }
     case 'aquecer': {
         // Baixa aos poucos os ícones de todos os itens do catálogo (chamado pelo agendamento).
         $lockf = fopen(cache_dir() . '/icones.lock', 'c');

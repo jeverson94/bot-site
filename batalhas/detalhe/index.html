@@ -36,6 +36,8 @@ EmporioShell.renderTopbar("/batalhas/");
 const id = (location.pathname.match(/\/batalhas\/(\d+)/) || [])[1] || new URLSearchParams(location.search).get("id");
 const region = new URLSearchParams(location.search).get("s") || Emp.getRegion();
 const regionLabel = (Emp.REGIONS.find(function (r) { return r.id === region; }) || {}).label || "";
+const SG = "Sem guilda";
+let DB = null, LUTA = [], CACHE = {}, VER = new URLSearchParams(location.search).get("ver") || "luta", ATUAL = null, verTodos = false;
 
 function sideTable(rows, label) {
   const maxP = Math.max.apply(null, rows.map(function (r) { return r.p; }).concat([1]));
@@ -47,37 +49,50 @@ function sideTable(rows, label) {
     }).join("") + "</tbody></table></div>";
 }
 
-function who(p, DB) {
+function who(p) {
   const w = p.eq.MainHand;
   return '<div class="who">' + (w ? '<img class="ico" src="' + Emp.icon(w) + '" alt="" title="' + Emp.esc(Emp.itemName(DB, w)) + '" loading="lazy">' : '<span class="ico"></span>') +
-    "<div><b>" + Emp.esc(p.n) + "</b><span>" + Emp.esc(p.g || "Sem guilda") + (p.a ? " [" + Emp.esc(p.a) + "]" : "") + " · IP " + p.ip + "</span></div></div>";
+    "<div><b>" + Emp.esc(p.n) + "</b><span>" + Emp.esc(p.g || SG) + (p.a ? " [" + Emp.esc(p.a) + "]" : "") + " · IP " + p.ip + "</span></div></div>";
 }
 
-Promise.all([Emp.albion("battle", { s: region, id: id }), Emp.items()]).then(function (res) {
-  const b = res[0].battle, events = res[0].events, DB = res[1];
-  const players = Object.values(b.players || {});
-  const secs = (Date.parse(b.endTime) - Date.parse(b.startTime)) / 1000;
-  document.title = "Batalha " + b.id + " | Empório dos Bots";
-  document.getElementById("crumb").textContent = "Batalha " + b.id;
+function hora(iso) { return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
 
-  const ally = {};
-  const guild = {};
-  players.forEach(function (p) {
-    const ak = p.allianceName || p.guildName || "Sem guilda";
+// Junta várias batalhas numa só: soma abates, mortes e fama de cada jogador.
+function juntar(lista) {
+  const players = {}, events = [];
+  let k = 0, f = 0, ini = null, fim = null;
+  lista.forEach(function (r, bi) {
+    const b = r.battle;
+    k += b.totalKills || 0; f += b.totalFame || 0;
+    if (!ini || b.startTime < ini) ini = b.startTime;
+    if (!fim || b.endTime > fim) fim = b.endTime;
+    Object.values(b.players || {}).forEach(function (p) {
+      const x = players[p.id] || (players[p.id] = { id: p.id, name: p.name, guildName: "", allianceName: "", kills: 0, deaths: 0, killFame: 0, nb: 0 });
+      x.kills += p.kills; x.deaths += p.deaths; x.killFame += p.killFame; x.nb++;
+      if (p.guildName) x.guildName = p.guildName;
+      if (p.allianceName) x.allianceName = p.allianceName;
+    });
+    r.events.forEach(function (e) { events.push(Object.assign({ b: b.id, bi: bi }, e)); });
+  });
+  events.sort(function (a, c) { return a.t < c.t ? -1 : a.t > c.t ? 1 : 0; });
+  return { ids: lista.map(function (r) { return r.battle.id; }), startTime: ini, endTime: fim, totalKills: k, totalFame: f, players: Object.values(players), events: events };
+}
+
+function resumo(L) {
+  const ally = {}, guild = {};
+  L.players.forEach(function (p) {
+    const ak = p.allianceName || p.guildName || SG;
     if (!ally[ak]) ally[ak] = { n: ak, p: 0, k: 0, d: 0, f: 0, g: {} };
     ally[ak].p++; ally[ak].k += p.kills; ally[ak].d += p.deaths; ally[ak].f += p.killFame;
     if (p.guildName) ally[ak].g[p.guildName] = 1;
-    const gk = p.guildName || "Sem guilda";
-    if (!guild[gk]) guild[gk] = { n: gk, sub: p.allianceName ? "Aliança " + p.allianceName : "", p: 0, k: 0, d: 0, f: 0 };
+    const gk = p.guildName || SG;
+    if (!guild[gk]) guild[gk] = { n: gk, a: p.allianceName || "", sub: p.allianceName ? "Aliança " + p.allianceName : "", p: 0, k: 0, d: 0, f: 0 };
     guild[gk].p++; guild[gk].k += p.kills; guild[gk].d += p.deaths; guild[gk].f += p.killFame;
   });
-  // "Sem guilda" junta jogadores soltos: vai pro fim da tabela e não conta como lado nem como guilda.
-  const SG = "Sem guilda";
   const ordem = function (x, y) { return (x.n === SG) - (y.n === SG) || y.p - x.p || (y.k + y.d) - (x.k + x.d) || y.f - x.f; };
   const allyRows = Object.values(ally).map(function (a) { a.sub = Object.keys(a.g).join(", "); return a; }).sort(ordem);
   const guildRows = Object.values(guild).sort(ordem);
   const lados = allyRows.filter(function (a) { return a.n !== SG; });
-  // Título: o lado que mais matou contra o lado que mais morreu (os dois que de fato se enfrentaram).
   const porK = lados.slice().sort(function (x, y) { return y.k - x.k || y.f - x.f; });
   const porD = lados.slice().sort(function (x, y) { return y.d - x.d || y.p - x.p; });
   let titulo = [];
@@ -85,29 +100,141 @@ Promise.all([Emp.albion("battle", { s: region, id: id }), Emp.items()]).then(fun
   const alvo = porD.find(function (a) { return a.d && titulo.indexOf(a.n) < 0; });
   if (alvo) titulo.push(alvo.n);
   if (titulo.length < 2) titulo = lados.slice(0, 2).map(function (a) { return a.n; });
-  const topPlayers = players.slice().sort(function (x, y) { return y.kills - x.kills || y.killFame - x.killFame; }).slice(0, 15);
+  const jogadores = L.players.slice().sort(function (x, y) { return y.kills - x.kills || y.killFame - x.killFame || x.deaths - y.deaths; });
+  return { allyRows: allyRows, guildRows: guildRows, lados: lados, titulo: titulo.join(" x ") || "Batalha " + L.ids[0], jogadores: jogadores };
+}
 
+function abas() {
+  if (LUTA.length < 2) return "";
+  return '<div class="card" style="margin:0 0 18px;padding:12px 14px"><p class="muted small" style="margin:0 0 8px">O Albion dividiu essa luta em ' + LUTA.length + " batalhas. Veja tudo junto ou cada uma separada.</p>" +
+    '<div class="tabs" id="abas"><button class="tab' + (VER === "luta" ? " on" : "") + '" data-ver="luta">Luta inteira</button>' +
+    LUTA.map(function (b, i) {
+      return '<button class="tab' + (VER === String(b.id) ? " on" : "") + '" data-ver="' + b.id + '">' + (i + 1) + "ª · " + hora(b.startTime) + " · " + b.totalKills + " abates</button>";
+    }).join("") + "</div></div>";
+}
+
+function render(L) {
+  ATUAL = L;
+  const R = resumo(L);
+  const secs = (Date.parse(L.endTime) - Date.parse(L.startTime)) / 1000;
+  const varias = L.ids.length > 1;
+  document.title = (varias ? "Luta " : "Batalha ") + R.titulo + " | Empório dos Bots";
+  document.getElementById("crumb").textContent = varias ? "Luta com " + L.ids.length + " batalhas" : "Batalha " + L.ids[0];
+  const lista = verTodos ? R.jogadores : R.jogadores.slice(0, 15);
   document.getElementById("root").innerHTML =
-    '<section class="page-hero" style="padding-top:6px"><div class="eyebrow">' + Emp.esc(regionLabel) + " · " + Emp.dateTime(b.startTime) + "</div>" +
-    "<h1>" + Emp.esc(titulo.join(" x ") || "Batalha " + b.id) + "</h1>" +
-    '<p class="subtitle">Começou ' + Emp.ago(b.startTime) + " e durou " + Emp.duration(secs) + ".</p></section>" +
-    '<div class="stats"><div class="stat"><b>' + players.length + '</b><span>Jogadores</span></div><div class="stat"><b>' + Emp.int(b.totalKills) +
-    '</b><span>Abates</span></div><div class="stat"><b>' + Emp.num(b.totalFame) + '</b><span>Fama total</span></div><div class="stat"><b>' + lados.length +
-    '</b><span>Lados</span></div><div class="stat"><b>' + guildRows.filter(function (g) { return g.n !== SG; }).length + "</b><span>Guildas</span></div></div>" +
+    '<section class="page-hero" style="padding-top:6px"><div class="eyebrow">' + Emp.esc(regionLabel) + " · " + Emp.dateTime(L.startTime) + "</div>" +
+    "<h1>" + Emp.esc(R.titulo) + "</h1>" +
+    '<p class="subtitle">Começou ' + Emp.ago(L.startTime) + " e durou " + Emp.duration(secs) + (varias ? " no total, somando " + L.ids.length + " batalhas" : "") + ".</p>" +
+    '<div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn" id="dl-html">Baixar relatório</button><button class="btn secondary" id="dl-csv">Baixar planilha (CSV)</button></div>' +
+    '<p class="muted small" style="margin:6px 0 0">O site guarda as batalhas por 30 dias. Baixe o relatório pra guardar por mais tempo: ele abre no navegador, sem internet.</p></section>' +
+    abas() +
+    '<div class="stats"><div class="stat"><b>' + L.players.length + '</b><span>Jogadores</span></div><div class="stat"><b>' + Emp.int(L.totalKills) +
+    '</b><span>Abates</span></div><div class="stat"><b>' + Emp.num(L.totalFame) + '</b><span>Fama total</span></div><div class="stat"><b>' + R.lados.length +
+    '</b><span>Lados</span></div><div class="stat"><b>' + R.guildRows.filter(function (g) { return g.n !== SG; }).length + "</b><span>Guildas</span></div></div>" +
     '<p class="muted small" style="margin:10px 0 0">A API do Albion só registra quem matou, ajudou num abate ou morreu. Quem estava na luta sem participar de nenhum abate não aparece aqui.</p>' +
-    '<div class="section"><h2>Por aliança</h2>' + sideTable(allyRows, "Aliança ou guilda") + "</div>" +
-    '<div class="section"><h2>Por guilda</h2>' + sideTable(guildRows, "Guilda") + "</div>" +
-    '<div class="section"><h2>Destaques</h2><div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th>Guilda</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th></tr></thead><tbody>' +
-    topPlayers.map(function (p) {
-      return "<tr><td><b>" + Emp.esc(p.name) + '</b></td><td class="muted">' + Emp.esc(p.guildName || "Sem guilda") + '</td><td class="num">' + p.kills + '</td><td class="num">' + p.deaths + '</td><td class="num">' + Emp.num(p.killFame) + "</td></tr>";
-    }).join("") + "</tbody></table></div></div>" +
-    '<div class="section"><h2>Mortes</h2><p class="subtitle">' + events.length + " registradas, na ordem em que aconteceram. O ícone é a arma de cada um.</p>" +
-    '<div class="card" style="padding:0">' + (events.length ? events.map(function (e) {
-      return '<div class="kill"><span class="t muted small">' + new Date(e.t).toLocaleTimeString("pt-BR") + "</span>" + who(e.k, DB) +
-        '<span class="arrow">→</span>' + who(e.v, DB) + '<span class="f num muted small" style="text-align:right">' + Emp.num(e.f) + "</span></div>";
+    '<div class="section"><h2>Por aliança</h2>' + sideTable(R.allyRows, "Aliança ou guilda") + "</div>" +
+    '<div class="section"><h2>Por guilda</h2>' + sideTable(R.guildRows, "Guilda") + "</div>" +
+    '<div class="section"><h2>' + (verTodos ? "Todos os jogadores" : "Destaques") + '</h2><div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th>Guilda</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th>' + (varias ? '<th class="num">Batalhas</th>' : "") + "</tr></thead><tbody>" +
+    lista.map(function (p) {
+      return "<tr><td><b>" + Emp.esc(p.name) + '</b></td><td class="muted">' + Emp.esc(p.guildName || SG) + '</td><td class="num">' + p.kills + '</td><td class="num">' + p.deaths + '</td><td class="num">' + Emp.num(p.killFame) + "</td>" + (varias ? '<td class="num">' + p.nb + "</td>" : "") + "</tr>";
+    }).join("") + "</tbody></table></div>" +
+    (R.jogadores.length > 15 ? '<div class="pager"><button class="btn secondary" id="todos">' + (verTodos ? "Mostrar só os destaques" : "Mostrar todos os " + R.jogadores.length + " jogadores") + "</button></div>" : "") + "</div>" +
+    '<div class="section"><h2>Mortes</h2><p class="subtitle">' + L.events.length + " registradas, na ordem em que aconteceram. O ícone é a arma de cada um.</p>" +
+    '<div class="card" style="padding:0">' + (L.events.length ? L.events.map(function (e, i) {
+      const sep = varias && (i === 0 || L.events[i - 1].b !== e.b) ? '<div class="muted small" style="padding:8px 14px;background:rgba(226,188,98,.06)">' + (e.bi + 1) + "ª batalha · " + hora(e.t) + "</div>" : "";
+      return sep + '<div class="kill"><span class="t muted small">' + new Date(e.t).toLocaleTimeString("pt-BR") + "</span>" + who(e.k) +
+        '<span class="arrow">→</span>' + who(e.v) + '<span class="f num muted small" style="text-align:right">' + Emp.num(e.f) + "</span></div>";
     }).join("") : Emp.emptyState("A API ainda não publicou as mortes dessa batalha.")) + "</div></div>";
-}).catch(function (e) {
-  document.getElementById("root").innerHTML = Emp.emptyState(Emp.esc(e.message) + '. <a href="/batalhas/">Voltar para as batalhas</a>');
+}
+
+// ---------- download ----------
+function baixar(nome, tipo, conteudo) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+  a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+}
+function nomeArquivo(ext) {
+  const d = new Date(ATUAL.startTime);
+  const data = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "_" + String(d.getHours()).padStart(2, "0") + "h" + String(d.getMinutes()).padStart(2, "0");
+  return (ATUAL.ids.length > 1 ? "luta" : "batalha") + "_" + data + "_" + ATUAL.ids[0] + "." + ext;
+}
+function csv() {
+  const q = function (v) { v = String(v == null ? "" : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const R = resumo(ATUAL);
+  const linhas = [["Jogador", "Guilda", "Aliança", "Abates", "Mortes", "Fama de abate", "Batalhas"].join(";")];
+  R.jogadores.forEach(function (p) { linhas.push([p.name, p.guildName, p.allianceName, p.kills, p.deaths, p.killFame, p.nb].map(q).join(";")); });
+  baixar(nomeArquivo("csv"), "text/csv;charset=utf-8", "﻿" + linhas.join("\r\n"));
+}
+function relatorio() {
+  const L = ATUAL, R = resumo(L), e = Emp.esc;
+  const secs = (Date.parse(L.endTime) - Date.parse(L.startTime)) / 1000;
+  const quando = new Date(L.startTime).toLocaleString("pt-BR", { dateStyle: "full", timeStyle: "short" });
+  const tab = function (rows, label) {
+    return "<table><thead><tr><th>" + label + "</th><th>Jogadores</th><th>Abates</th><th>Mortes</th><th>Fama de abate</th></tr></thead><tbody>" +
+      rows.map(function (r) { return "<tr><td><b>" + e(r.n) + "</b>" + (r.sub ? "<small>" + e(r.sub) + "</small>" : "") + "</td><td>" + r.p + "</td><td>" + r.k + "</td><td>" + r.d + "</td><td>" + Emp.num(r.f) + "</td></tr>"; }).join("") + "</tbody></table>";
+  };
+  const arma = function (p) { const w = p.eq.MainHand; return w ? Emp.itemName(DB, w) : "-"; };
+  const pessoa = function (p) { return "<b>" + e(p.n) + "</b> <small>" + e(p.g || SG) + (p.a ? " [" + e(p.a) + "]" : "") + " · " + e(arma(p)) + " · IP " + p.ip + "</small>"; };
+  const batalhas = L.ids.length > 1 ? "<h2>Batalhas desta luta</h2><table><thead><tr><th>#</th><th>Início</th><th>ID</th><th>Jogadores</th><th>Abates</th><th>Fama</th></tr></thead><tbody>" +
+    LUTA.filter(function (b) { return L.ids.indexOf(b.id) >= 0; }).map(function (b, i) { return "<tr><td>" + (i + 1) + "</td><td>" + hora(b.startTime) + "</td><td>" + b.id + "</td><td>" + b.n + "</td><td>" + b.totalKills + "</td><td>" + Emp.num(b.totalFame) + "</td></tr>"; }).join("") + "</tbody></table>" : "";
+  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + e(R.titulo) + " · " + e(quando) + "</title><style>" +
+    "body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#0f1117;color:#e8e6e1;margin:0;padding:24px;line-height:1.45}main{max-width:1000px;margin:0 auto}" +
+    "h1{margin:4px 0 4px;font-size:28px}h2{margin:28px 0 10px;font-size:19px;color:#e2bc62}.ey{color:#e2bc62;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}" +
+    ".muted,small{color:#9a9aa6}small{display:block;font-size:12px}.stats{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.stats div{background:#171a23;border:1px solid #262a36;border-radius:10px;padding:10px 16px;min-width:110px}.stats b{display:block;font-size:22px}" +
+    "table{width:100%;border-collapse:collapse;background:#171a23;border:1px solid #262a36;border-radius:10px;overflow:hidden;font-size:13px}th,td{padding:7px 10px;border-bottom:1px solid #222633;text-align:left}th{color:#9a9aa6;font-size:11px;text-transform:uppercase;letter-spacing:.06em}td:not(:first-child),th:not(:first-child){text-align:right}" +
+    ".k td{text-align:left!important}.k td small{display:inline}footer{margin:30px 0 0;color:#6d6d78;font-size:12px}" +
+    "@media print{body{background:#fff;color:#111}table,.stats div{background:#fff;border-color:#ccc}h2,.ey{color:#8a6a1c}}</style></head><body><main>" +
+    '<div class="ey">' + e(regionLabel) + " · " + e(quando) + "</div><h1>" + e(R.titulo) + "</h1>" +
+    '<p class="muted">Durou ' + Emp.duration(secs) + (L.ids.length > 1 ? ", somando " + L.ids.length + " batalhas (IDs " + L.ids.join(", ") + ")" : " · batalha " + L.ids[0]) + ".</p>" +
+    '<div class="stats"><div><b>' + L.players.length + "</b>Jogadores</div><div><b>" + L.totalKills + "</b>Abates</div><div><b>" + Emp.num(L.totalFame) + "</b>Fama total</div><div><b>" + R.lados.length + "</b>Lados</div></div>" +
+    '<p class="muted"><small>A API do Albion só registra quem matou, ajudou num abate ou morreu.</small></p>' +
+    batalhas + "<h2>Por aliança</h2>" + tab(R.allyRows, "Aliança ou guilda") + "<h2>Por guilda</h2>" + tab(R.guildRows, "Guilda") +
+    "<h2>Jogadores (" + R.jogadores.length + ")</h2><table><thead><tr><th>Jogador</th><th>Guilda</th><th>Aliança</th><th>Abates</th><th>Mortes</th><th>Fama de abate</th></tr></thead><tbody>" +
+    R.jogadores.map(function (p) { return "<tr><td><b>" + e(p.name) + "</b></td><td>" + e(p.guildName || SG) + "</td><td>" + e(p.allianceName || "-") + "</td><td>" + p.kills + "</td><td>" + p.deaths + "</td><td>" + Emp.num(p.killFame) + "</td></tr>"; }).join("") + "</tbody></table>" +
+    "<h2>Mortes (" + L.events.length + ')</h2><table class="k"><thead><tr><th>Hora</th><th>Quem matou</th><th>Quem morreu</th><th>Fama</th></tr></thead><tbody>' +
+    L.events.map(function (x) { return "<tr><td>" + new Date(x.t).toLocaleTimeString("pt-BR") + "</td><td>" + pessoa(x.k) + "</td><td>" + pessoa(x.v) + "</td><td>" + Emp.num(x.f) + "</td></tr>"; }).join("") + "</tbody></table>" +
+    "<footer>Relatório gerado em " + new Date().toLocaleString("pt-BR") + " pelo Empório dos Bots a partir da API oficial do Albion Online.</footer></main></body></html>";
+  baixar(nomeArquivo("html"), "text/html;charset=utf-8", html);
+}
+
+// ---------- carregar ----------
+function batalha(bid) {
+  if (!CACHE[bid]) CACHE[bid] = Emp.albion("battle", { s: region, id: bid });
+  return CACHE[bid];
+}
+async function mostrar() {
+  const ids = VER === "luta" && LUTA.length > 1 ? LUTA.map(function (b) { return b.id; }) : [VER === "luta" ? Number(id) : Number(VER)];
+  if (ATUAL) document.getElementById("root").style.opacity = ".6";
+  else if (ids.length > 1) document.getElementById("root").innerHTML = '<div class="state"><span class="spin"></span>Juntando as ' + ids.length + " batalhas da luta...</div>";
+  try {
+    const lista = await Promise.all(ids.map(batalha));
+    document.getElementById("root").style.opacity = "";
+    render(juntar(lista));
+  } catch (e) {
+    document.getElementById("root").style.opacity = "";
+    document.getElementById("root").innerHTML = Emp.emptyState(Emp.esc(e.message) + '. <a href="/batalhas/">Voltar para as batalhas</a>');
+  }
+}
+
+document.getElementById("root").addEventListener("click", function (e) {
+  const t = e.target.closest("[data-ver]");
+  if (t) {
+    VER = t.dataset.ver; verTodos = false;
+    const u = new URL(location.href);
+    if (VER === "luta") u.searchParams.delete("ver"); else u.searchParams.set("ver", VER);
+    history.replaceState(null, "", u);
+    mostrar(); return;
+  }
+  if (e.target.id === "todos") { verTodos = !verTodos; render(ATUAL); return; }
+  if (e.target.id === "dl-html") relatorio();
+  if (e.target.id === "dl-csv") csv();
+});
+
+Promise.all([Emp.items(), Emp.albion("luta", { s: region, id: id }).catch(function () { return { battles: [] }; })]).then(function (r) {
+  DB = r[0];
+  LUTA = (r[1].battles || []).length > 1 ? r[1].battles : [];
+  if (VER !== "luta" && !LUTA.some(function (b) { return String(b.id) === VER; })) VER = "luta";
+  mostrar();
 });
 </script>
 </body>

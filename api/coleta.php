@@ -453,6 +453,60 @@ function battle_list($s, $offset, $min, $q) {
     return ['battles' => $out, 'updated' => (int)meta_get($pdo, 'last_ok', 0), 'total' => (int)$pdo->query('SELECT COUNT(*) FROM battles')->fetchColumn()];
 }
 
+// Batalhas da mesma luta: o Albion corta uma luta longa em várias batalhas. Junta as que
+// começaram até 10 min uma da outra e têm um dos dois lados principais (aliança, ou guilda
+// sem aliança, com mais jogadores) em comum.
+function battle_main_sides($pdo, $lo, $hi) {
+    $lado = "CASE WHEN ai IS NOT NULL AND ai <> '' THEN 'a:' || ai ELSE 'g:' || g END";
+    $st = $pdo->prepare("SELECT b, MIN(t) t, $lado AS k, SUM(p) p FROM bg WHERE t BETWEEN ? AND ? GROUP BY b, k ORDER BY b, p DESC");
+    $st->execute([$lo, $hi]);
+    $out = [];
+    foreach ($st->fetchAll() as $r) {
+        $b = (int)$r['b'];
+        if (!isset($out[$b])) $out[$b] = ['t' => (int)$r['t'], 'k' => []];
+        if (count($out[$b]['k']) < 2) $out[$b]['k'][] = $r['k'];
+    }
+    return $out;
+}
+
+function battle_neighbors($s, $id) {
+    $pdo = db($s);
+    $st = $pdo->prepare('SELECT t FROM battles WHERE id = ?');
+    $st->execute([$id]);
+    $t0 = $st->fetchColumn();
+    if ($t0 === false) return ['battles' => []];
+    $t0 = (int)$t0;
+    $cand = battle_main_sides($pdo, $t0 - 3600, $t0 + 3600);
+    if (!isset($cand[(int)$id])) return ['battles' => []];
+    $set = [(int)$id => $t0];
+    $mudou = true;
+    while ($mudou && count($set) < 12) {
+        $mudou = false;
+        foreach ($cand as $b => $c) {
+            if (isset($set[$b])) continue;
+            foreach ($set as $m => $t) {
+                if (abs($t - $c['t']) <= 600 && array_intersect($c['k'], $cand[$m]['k'])) { $set[$b] = $c['t']; $mudou = true; break; }
+            }
+            if (count($set) >= 12) break;
+        }
+    }
+    $in = implode(',', array_map('intval', array_keys($set)));
+    $rows = $pdo->query("SELECT id, t, p, k, f FROM battles WHERE id IN ($in) ORDER BY t")->fetchAll();
+    $sides = [];
+    foreach ($pdo->query("SELECT bg.b, bg.p, guilds.n, guilds.a FROM bg JOIN guilds ON guilds.g = bg.g WHERE bg.b IN ($in)")->fetchAll() as $r) {
+        $key = $r['a'] !== '' ? $r['a'] : $r['n'];
+        if (!isset($sides[$r['b']][$key])) $sides[$r['b']][$key] = ['n' => $key, 'p' => 0];
+        $sides[$r['b']][$key]['p'] += (int)$r['p'];
+    }
+    $out = [];
+    foreach ($rows as $b) {
+        $sd = array_values($sides[$b['id']] ?? []);
+        usort($sd, function ($x, $y) { return $y['p'] <=> $x['p']; });
+        $out[] = ['id' => (int)$b['id'], 'startTime' => gmdate('Y-m-d\TH:i:s\Z', $b['t']), 'n' => (int)$b['p'], 'totalKills' => (int)$b['k'], 'totalFame' => (int)$b['f'], 'sides' => $sd];
+    }
+    return ['battles' => $out];
+}
+
 // Busca de guilda pelo nome no banco (instantânea). Exatas e começando pelo texto vêm primeiro.
 function guild_search($s, $q) {
     $pdo = db($s);

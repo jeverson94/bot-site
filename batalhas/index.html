@@ -79,17 +79,42 @@ function matches(b) {
   });
 }
 
+// O Albion corta uma luta longa em várias batalhas. Junta as que começaram até 10 min
+// uma da outra e têm um dos dois lados principais (os com mais jogadores) em comum.
+function agrupar(list) {
+  const grupos = [];
+  list.forEach(function (b) {
+    const t = Date.parse(b.startTime);
+    const principais = function (x) { return topSides(x).slice(0, 2).map(function (y) { return y.n; }); };
+    const meus = principais(b);
+    const g = grupos.find(function (g) {
+      return g.bs.some(function (m) { return Math.abs(Date.parse(m.startTime) - t) <= 600000 && principais(m).some(function (n) { return meus.indexOf(n) >= 0; }); });
+    });
+    if (g) g.bs.push(b); else grupos.push({ bs: [b] });
+  });
+  return grupos;
+}
+function hm(iso) { return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+
 function render() {
   const list = all.filter(matches);
-  document.getElementById("rows").innerHTML = list.map(function (b) {
-    const sides = topSides(b);
+  document.getElementById("rows").innerHTML = agrupar(list).map(function (g) {
+    const bs = g.bs.slice().sort(function (a, c) { return Date.parse(a.startTime) - Date.parse(c.startTime); });
+    const b = bs[0];
+    const ladosMap = {};
+    bs.forEach(function (x) { topSides(x).forEach(function (s) { if (!ladosMap[s.n] || ladosMap[s.n].p < s.p) ladosMap[s.n] = { n: s.n, p: s.p }; }); });
+    const sides = Object.values(ladosMap).sort(function (a, c) { return c.p - a.p; });
     const names = sides.slice(0, 4).map(function (s) { return Emp.esc(s.n) + " (" + s.p + ")"; }).join(", ");
     const extra = sides.length > 4 ? " e mais " + (sides.length - 4) : "";
+    const varias = bs.length > 1;
+    const kills = bs.reduce(function (n, x) { return n + (x.totalKills || 0); }, 0);
+    const fama = bs.reduce(function (n, x) { return n + (x.totalFame || 0); }, 0);
+    const jog = Math.max.apply(null, bs.map(count));
     return '<tr class="link" data-id="' + b.id + '"><td class="bt-guilds">' + (names || "Jogadores sem guilda") + extra +
-      "<small>" + sides.length + (sides.length === 1 ? " lado" : " lados") + "</small></td>" +
+      "<small>" + sides.length + (sides.length === 1 ? " lado" : " lados") + (varias ? ' · <span style="color:var(--gold)">luta com ' + bs.length + " batalhas (" + bs.map(function (x) { return hm(x.startTime); }).join(", ") + ")</span>" : "") + "</small></td>" +
       '<td class="muted small">' + Emp.ago(b.startTime) + "<br>" + Emp.dateTime(b.startTime) + "</td>" +
-      '<td class="num">' + count(b) + '</td><td class="num">' + Emp.int(b.totalKills) +
-      '</td><td class="num">' + Emp.num(b.totalFame) + "</td></tr>";
+      '<td class="num"' + (varias ? ' title="Maior batalha da luta"' : "") + ">" + jog + '</td><td class="num">' + Emp.int(kills) +
+      '</td><td class="num">' + Emp.num(fama) + "</td></tr>";
   }).join("");
   const st = document.getElementById("state");
   if (!list.length && !busy) st.innerHTML = Emp.emptyState("Nenhuma batalha com esses filtros nas páginas carregadas. Tente carregar mais.");
