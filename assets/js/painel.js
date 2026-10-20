@@ -154,6 +154,14 @@
         const my = ++seq;
         const found = {};
         let html = "";
+        // Colou o ID da guilda (22 letras/números, sem espaço): busca direto por ele.
+        if (kind === "guilds" && /^[A-Za-z0-9_-]{20,40}$/.test(q)) {
+          try {
+            const g = await Emp.albion("guild", { s: region(), id: q });
+            if (my !== seq) return;
+            if (g && g.Id) { found[g.Id] = 1; html += row(g.Id, g.Name, (g.AllianceTag ? "[" + g.AllianceTag + "] " : "") + "· pelo ID"); }
+          } catch (e) {}
+        }
         // Guildas: primeiro o banco do site (na hora), depois a API oficial completa o que faltar.
         if (kind === "guilds") {
           try {
@@ -202,7 +210,7 @@
       const G = getLink("guilda");
       el.innerHTML = '<div class="card row between wrap" style="padding:12px 16px;margin-bottom:18px"><div class="row" style="gap:10px"><span class="muted small">Guilda</span><b style="font-size:16px">' +
         (G ? Emp.esc(G.n) : "nenhuma escolhida") + "</b>" + (G ? '<span class="badge">' + Emp.esc((Emp.REGIONS.find(function (r) { return r.id === G.s; }) || {}).label || "") + "</span>" : "") +
-        '</div><div class="pick-wrap" style="min-width:260px"><input class="input" id="gb-q" placeholder="' + (G ? "Trocar de guilda" : "Buscar a guilda pelo nome") + '" style="width:100%"><div id="gb-o"></div></div></div>';
+        '</div><div class="pick-wrap" style="min-width:260px"><input class="input" id="gb-q" placeholder="' + (G ? "Trocar de guilda (nome ou ID)" : "Buscar a guilda pelo nome ou ID") + '" style="width:100%"><div id="gb-o"></div></div></div>';
       picker(document.getElementById("gb-q"), document.getElementById("gb-o"), "guilds", function (x) {
         setLink("guilda", { id: x.id, n: x.n, s: Emp.getRegion() });
         draw();

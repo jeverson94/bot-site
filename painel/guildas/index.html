@@ -90,7 +90,7 @@
 <script src="/assets/js/auth.js?v=20261016d"></script>
 <script src="/assets/js/common.js?v=20261016d"></script>
 <script src="/assets/js/shell.js?v=20261016d"></script>
-<script src="/assets/js/painel.js?v=20261019b"></script>
+<script src="/assets/js/painel.js?v=20261020a"></script>
 <script src="/assets/js/graficos.js?v=20261016d"></script>
 <script>
 EmporioShell.renderTopbar("/painel/");
@@ -309,15 +309,15 @@ async function servers() {
     list.forEach(function (x) { x.offline = true; });
   }
   if (!list.length) { box.innerHTML = '<h2>Servidores do Discord</h2><p class="muted">Nenhum servidor seu com o bot instalado. Adicione o bot a um servidor onde você é administrador e entre de novo para ele aparecer aqui.</p>'; return; }
-  box.innerHTML = '<h2>Servidores do Discord</h2><p class="note" style="margin:0 0 8px">A guilda do jogo ligada a cada servidor. Quem é admin do servidor pode ligar ou trocar aqui ou no Discord com <code>/guilda vincular</code>.</p>' +
+  box.innerHTML = '<h2>Servidores do Discord</h2><p class="note" style="margin:0 0 8px">A guilda do jogo ligada a cada servidor. Quem é admin do servidor pode ligar ou trocar aqui ou no Discord com <code>/guilda vincular</code>. Na busca, digite o nome da guilda ou cole o ID dela (o código de 22 caracteres que aparece no fim do link da guilda).</p>' +
     list.map(function (x, i) {
       const a = x.albion;
       return '<div class="srv"><div><b>' + Emp.esc(x.name || x.guild_id) + "</b>" + (x.locked ? ' <span class="badge">sem plano</span>' : "") + '</div><div>' +
         (a ? "<b>" + Emp.esc(a.n) + '</b> <span class="muted small">' + (a.a ? "[" + Emp.esc(a.a) + "] · " : "") + REG[a.s] + "</span>" : '<span class="muted">Nenhuma guilda ligada</span>') + "</div><div class=\"row\" style=\"gap:8px;flex-wrap:wrap\">" +
         (a ? '<button class="btn secondary" data-use="' + i + '">Ver no painel</button>' : "") +
-        (x.admin && !x.offline ? '<div class="pick-wrap" style="min-width:220px"><input class="input" id="sv-q' + i + '" placeholder="' + (a ? "Trocar a guilda" : "Buscar a guilda do jogo") + '" style="width:100%"><div id="sv-o' + i + '"></div></div><select class="select" id="sv-r' + i + '">' +
+        (x.admin && !x.offline ? '<div class="pick-wrap" style="min-width:220px"><input class="input" id="sv-q' + i + '" placeholder="' + (a ? "Trocar (nome ou ID)" : "Nome ou ID da guilda") + '" style="width:100%"><div id="sv-o' + i + '"></div></div><select class="select" id="sv-r' + i + '">' +
           Object.keys(REG).map(function (k) { return '<option value="' + k + '"' + ((a ? a.s : Emp.getRegion()) === k ? " selected" : "") + ">" + REG[k] + "</option>"; }).join("") + "</select>" : "") +
-        (x.admin && a && !x.offline ? '<button class="btn secondary" data-del="' + i + '">Remover</button>' : "") + "</div></div>";
+        (x.admin && a && !x.offline ? '<button class="btn secondary" data-del="' + i + '">Remover</button>' : "") + (!x.admin && !x.offline ? '<span class="muted small">Só o admin do servidor troca</span>' : "") + "</div></div>";
     }).join("") + (list[0] && list[0].offline ? '<p class="note">O vínculo com o servidor ainda não está disponível. Enquanto isso, use a busca no topo da página ou <code>/guilda vincular</code> no Discord.</p>' : "");
   list.forEach(function (x, i) {
     const q = $("sv-q" + i);
