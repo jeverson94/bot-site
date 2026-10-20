@@ -26,9 +26,10 @@
   <main class="painel-main">
     <div class="painel-head">
       <div><h1>Builds</h1><p class="subtitle" style="margin:0">Suas builds e as builds de cada servidor do Discord com o bot. As do servidor são as que o bot manda por DM no ping.</p></div>
-      <div class="row"><a class="btn" href="/painel/builds/oficina/?new=1">Nova build</a><a class="btn secondary" href="/painel/builds/oficina/">Editar builds</a></div>
+      <div class="row"><a class="btn" href="/painel/builds/oficina/?new=1">Nova build</a><a class="btn secondary" href="/painel/builds/oficina/">Editar builds</a><button class="btn secondary" id="b-exp" title="Baixa um arquivo .json com as builds da lista">Exportar</button><label class="btn secondary" style="cursor:pointer" title="Carrega builds de um arquivo .json">Importar<input type="file" id="b-imp" accept="application/json,.json" hidden></label></div>
     </div>
     <div id="srvbar"></div>
+    <p class="muted small" id="b-io" style="margin:0 0 8px;min-height:16px"></p>
     <div class="tags row wrap" id="roles"></div>
     <div class="filters">
       <label class="field">Filtrar pelo nome<input class="input" id="fn" placeholder="Título da build"></label>
@@ -102,6 +103,57 @@ document.getElementById("grid").addEventListener("click", function (e) {
   MB.put(local);
   location.href = "/painel/builds/oficina/?id=" + encodeURIComponent(local.id);
 });
+function baixarJson(nome, dados) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(dados, null, 1)], { type: "application/json" }));
+  a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+}
+function slugArq(t) { return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "local"; }
+async function recarregarSrv() {
+  try { SRV_LIST = (await EmpServidor.api(SRV.id, "/api/servidor/builds")).builds; SRV_ERR = ""; } catch (e) { SRV_LIST = []; SRV_ERR = e.message; }
+  draw();
+}
+document.getElementById("b-exp").addEventListener("click", function () {
+  const io = document.getElementById("b-io");
+  const lista = (SRV ? SRV_LIST : MB.list()).map(function (b) {
+    const x = { nome: b.nome || "Sem título", papel: b.papel || "", notas: b.notas || "", equip: b.equip || {} };
+    if (b.sp) x.sp = b.sp; if (b.spw) x.spw = b.spw; if (b.conteudo) x.conteudo = b.conteudo;
+    return x;
+  });
+  if (!lista.length) { io.textContent = "Nenhuma build pra exportar."; return; }
+  baixarJson("builds-" + slugArq(SRV ? SRV.name : "navegador") + ".json", { tipo: "emporio-builds", versao: 1, origem: SRV ? SRV.name : "navegador", builds: lista });
+  io.textContent = lista.length + " build(s) exportada(s).";
+});
+document.getElementById("b-imp").addEventListener("change", async function () {
+  const f = this.files[0]; this.value = "";
+  const io = document.getElementById("b-io");
+  if (!f) return;
+  let arr;
+  try { const d = JSON.parse(await f.text()); arr = Array.isArray(d) ? d : (d.builds || (d.equip ? [d] : [])); }
+  catch (e) { io.textContent = "Arquivo inválido: não é um JSON."; return; }
+  arr = arr.filter(function (b) { return b && typeof b === "object" && b.equip && typeof b.equip === "object"; });
+  if (!arr.length) { io.textContent = "Nenhuma build encontrada no arquivo."; return; }
+  if (SRV) {
+    if (!confirm("Importar " + arr.length + " build(s) pro bot do " + SRV.name + "?")) return;
+    let ok = 0;
+    for (let i = 0; i < arr.length; i++) {
+      io.textContent = "Importando " + (i + 1) + " de " + arr.length + "...";
+      try { await EmpServidor.post(SRV.id, "/api/servidor/builds", { id: "", nome: arr[i].nome || "Build importada", papel: arr[i].papel || "", equip: arr[i].equip, notas: arr[i].notas || "" }); ok++; } catch (e) { io.textContent = e.message; }
+    }
+    await recarregarSrv();
+    io.textContent = ok + " de " + arr.length + " build(s) importada(s) no " + SRV.name + ".";
+  } else {
+    const all = MB.list();
+    arr.forEach(function (b) {
+      const nova = Object.assign(MB.blank(), { nome: b.nome || "Build importada", papel: b.papel || "", notas: b.notas || "", equip: b.equip, sp: b.sp || {}, spw: b.spw || {}, conteudo: b.conteudo || [] });
+      all.unshift(nova);
+    });
+    if (!MB.saveAll(all)) { io.textContent = "Não deu pra salvar neste navegador."; return; }
+    draw();
+    io.textContent = arr.length + " build(s) importada(s) neste navegador.";
+  }
+});
+
 draw();
 Emp.items().then(function (d) { DB = d; draw(); });
 EmpServidor.barra(document.getElementById("srvbar"), { local: true, rotulo: "Mostrar:", onChange: async function (g) {
