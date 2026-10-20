@@ -71,17 +71,30 @@ Promise.all([Emp.albion("battle", { s: region, id: id }), Emp.items()]).then(fun
     if (!guild[gk]) guild[gk] = { n: gk, sub: p.allianceName ? "Aliança " + p.allianceName : "", p: 0, k: 0, d: 0, f: 0 };
     guild[gk].p++; guild[gk].k += p.kills; guild[gk].d += p.deaths; guild[gk].f += p.killFame;
   });
-  const allyRows = Object.values(ally).map(function (a) { a.sub = Object.keys(a.g).join(", "); return a; }).sort(function (x, y) { return y.p - x.p; });
-  const guildRows = Object.values(guild).sort(function (x, y) { return y.p - x.p; });
+  // "Sem guilda" junta jogadores soltos: vai pro fim da tabela e não conta como lado nem como guilda.
+  const SG = "Sem guilda";
+  const ordem = function (x, y) { return (x.n === SG) - (y.n === SG) || y.p - x.p || (y.k + y.d) - (x.k + x.d) || y.f - x.f; };
+  const allyRows = Object.values(ally).map(function (a) { a.sub = Object.keys(a.g).join(", "); return a; }).sort(ordem);
+  const guildRows = Object.values(guild).sort(ordem);
+  const lados = allyRows.filter(function (a) { return a.n !== SG; });
+  // Título: o lado que mais matou contra o lado que mais morreu (os dois que de fato se enfrentaram).
+  const porK = lados.slice().sort(function (x, y) { return y.k - x.k || y.f - x.f; });
+  const porD = lados.slice().sort(function (x, y) { return y.d - x.d || y.p - x.p; });
+  let titulo = [];
+  if (porK[0] && porK[0].k) titulo.push(porK[0].n);
+  const alvo = porD.find(function (a) { return a.d && titulo.indexOf(a.n) < 0; });
+  if (alvo) titulo.push(alvo.n);
+  if (titulo.length < 2) titulo = lados.slice(0, 2).map(function (a) { return a.n; });
   const topPlayers = players.slice().sort(function (x, y) { return y.kills - x.kills || y.killFame - x.killFame; }).slice(0, 15);
 
   document.getElementById("root").innerHTML =
     '<section class="page-hero" style="padding-top:6px"><div class="eyebrow">' + Emp.esc(regionLabel) + " · " + Emp.dateTime(b.startTime) + "</div>" +
-    "<h1>" + Emp.esc(allyRows.slice(0, 2).map(function (a) { return a.n; }).join(" x ") || "Batalha " + b.id) + "</h1>" +
+    "<h1>" + Emp.esc(titulo.join(" x ") || "Batalha " + b.id) + "</h1>" +
     '<p class="subtitle">Começou ' + Emp.ago(b.startTime) + " e durou " + Emp.duration(secs) + ".</p></section>" +
     '<div class="stats"><div class="stat"><b>' + players.length + '</b><span>Jogadores</span></div><div class="stat"><b>' + Emp.int(b.totalKills) +
-    '</b><span>Abates</span></div><div class="stat"><b>' + Emp.num(b.totalFame) + '</b><span>Fama total</span></div><div class="stat"><b>' + allyRows.length +
-    '</b><span>Lados</span></div><div class="stat"><b>' + guildRows.length + "</b><span>Guildas</span></div></div>" +
+    '</b><span>Abates</span></div><div class="stat"><b>' + Emp.num(b.totalFame) + '</b><span>Fama total</span></div><div class="stat"><b>' + lados.length +
+    '</b><span>Lados</span></div><div class="stat"><b>' + guildRows.filter(function (g) { return g.n !== SG; }).length + "</b><span>Guildas</span></div></div>" +
+    '<p class="muted small" style="margin:10px 0 0">A API do Albion só registra quem matou, ajudou num abate ou morreu. Quem estava na luta sem participar de nenhum abate não aparece aqui.</p>' +
     '<div class="section"><h2>Por aliança</h2>' + sideTable(allyRows, "Aliança ou guilda") + "</div>" +
     '<div class="section"><h2>Por guilda</h2>' + sideTable(guildRows, "Guilda") + "</div>" +
     '<div class="section"><h2>Destaques</h2><div class="table-wrap"><table class="table"><thead><tr><th>Jogador</th><th>Guilda</th><th class="num">Abates</th><th class="num">Mortes</th><th class="num">Fama de abate</th></tr></thead><tbody>' +
