@@ -45,6 +45,11 @@
   <div class="cp-layout">
     <div class="card">
       <button class="btn" id="new" style="width:100%">Nova composição</button>
+      <div class="row" style="gap:6px;margin-top:8px">
+        <button class="btn secondary" id="cp-exp" style="flex:1;padding:7px 10px;font-size:13px" title="Baixa um arquivo .json com as composições da lista">Exportar</button>
+        <label class="btn secondary" style="flex:1;padding:7px 10px;font-size:13px;cursor:pointer;text-align:center" title="Carrega composições de um arquivo .json">Importar<input type="file" id="cp-imp" accept="application/json,.json" hidden></label>
+      </div>
+      <p class="muted small" id="cp-io" style="margin:6px 0 0;min-height:16px"></p>
       <div class="saved" id="saved"></div>
     </div>
     <div class="card" id="editor"></div>
@@ -257,6 +262,55 @@ document.getElementById("saved").addEventListener("click", function (e) {
   history.replaceState(null, "", "/composicoes/");
   drawSaved(); draw();
 });
+function baixarJson(nome, dados) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(dados, null, 1)], { type: "application/json" }));
+  a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+}
+function slugArq(t) { return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "local"; }
+function compValida(c) { return c && typeof c === "object" && Array.isArray(c.p) && c.p.every(function (p) { return p && Array.isArray(p.s); }); }
+document.getElementById("cp-exp").addEventListener("click", function () {
+  const lista = loadSaved().map(function (c) { const x = JSON.parse(JSON.stringify(c)); delete x.srv; return x; });
+  const io = document.getElementById("cp-io");
+  if (!lista.length) { io.textContent = "Nenhuma composição pra exportar."; return; }
+  baixarJson("composicoes-" + slugArq(SRV ? SRV.name : "navegador") + ".json", { tipo: "emporio-comps", versao: 1, origem: SRV ? SRV.name : "navegador", comps: lista });
+  io.textContent = lista.length + " composição(ões) exportada(s).";
+});
+document.getElementById("cp-imp").addEventListener("change", async function () {
+  const f = this.files[0]; this.value = "";
+  const io = document.getElementById("cp-io");
+  if (!f) return;
+  let arr;
+  try { const d = JSON.parse(await f.text()); arr = Array.isArray(d) ? d : (d.comps || (compValida(d) ? [d] : [])); }
+  catch (e) { io.textContent = "Arquivo inválido: não é um JSON."; return; }
+  arr = arr.filter(compValida);
+  if (!arr.length) { io.textContent = "Nenhuma composição encontrada no arquivo."; return; }
+  const base = Date.now();
+  arr = arr.map(function (c, i) {
+    return { id: (base + i).toString(36), n: String(c.n || "Composição importada").slice(0, 80), c: String(c.c || ""), p: c.p.map(function (p) {
+      return { n: String(p.n || "Party"), s: p.s.map(function (x) { return { r: x.r || "melee", w: x.w || "", b: x.b || "", o: x.o || "", n: x.n || "", e: x.e || "", l: x.l || "" }; }) };
+    }) };
+  });
+  if (SRV) {
+    if (!confirm("Importar " + arr.length + " composição(ões) pro bot do " + SRV.name + "?")) return;
+    const ids = new Set(SRV_BUILDS.map(function (b) { return b.id; }));
+    let ok = 0, semBuild = 0;
+    for (let i = 0; i < arr.length; i++) {
+      io.textContent = "Importando " + (i + 1) + " de " + arr.length + "...";
+      arr[i].p.forEach(function (p) { p.s.forEach(function (x) { if (x.b && !ids.has(x.b)) { x.b = ""; semBuild++; } }); });
+      try { await EmpServidor.post(SRV.id, "/api/servidor/comps", toApi(arr[i])); ok++; } catch (e) { io.textContent = e.message; }
+    }
+    await trocarServidor(SRV);
+    io.textContent = ok + " de " + arr.length + " importada(s) no " + SRV.name + "." + (semBuild ? " " + semBuild + " vaga(s) ficaram sem build porque a build não existe nesse servidor." : "");
+  } else {
+    try { localStorage.setItem(KEY, JSON.stringify(arr.concat(loadSaved()))); } catch (e) { io.textContent = "Não deu pra salvar neste navegador."; return; }
+    viewOnly = false; comp = arr[0];
+    history.replaceState(null, "", "/composicoes/");
+    drawSaved(); draw();
+    io.textContent = arr.length + " composição(ões) importada(s) neste navegador.";
+  }
+});
+
 document.getElementById("new").addEventListener("click", function () {
   viewOnly = false; comp = blank();
   history.replaceState(null, "", "/composicoes/");
